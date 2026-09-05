@@ -1,0 +1,680 @@
+// EduTrace database schema.
+//
+// Design principles enforced here:
+//   1. Every tenant-scoped table carries schoolId, indexed.
+//   2. PII (StudentIdentity) is a separate table from operational data
+//      (StudentObservation), so a query or export of one does not
+//      automatically carry the other.
+//   3. operational_data (StudentObservation) and training_dataset
+//      (TrainingDatasetRecord) are separate tables. Nothing here promotes a
+//      row from one to the other automatically (Section 79).
+//   4. Safeguarding escalations have no free-text content field, mirroring
+//      the Python EscalationRecord's structural guarantee.
+//   5. Model governance (ModelRegistration) is enforced here, not assumed.
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider  = "postgresql"
+  url       = env("DATABASE_URL")
+  directUrl = env("DIRECT_URL")
+}
+
+// --------------------------------------------------------------------------
+// Enums
+// --------------------------------------------------------------------------
+
+enum TeacherRole {
+  TEACHER
+  SCHOOL_ADMIN
+  SYSTEM_ADMIN
+  // Reserved for future use, per Section 8. Not yet assignable via the API.
+  DISTRICT_ADMIN
+  SUPER_ADMIN
+}
+
+enum AccountStatus {
+  PENDING_EMAIL_VERIFICATION
+  PENDING_SCHOOL_APPROVAL
+  ACTIVE
+  SUSPENDED
+  DEACTIVATED
+}
+
+enum SchoolStatus {
+  ONBOARDING
+  ACTIVE
+  SUSPENDED
+  ARCHIVED
+}
+
+enum GradeLevel {
+  JHS1
+  JHS2
+  JHS3
+}
+
+enum Term {
+  T1
+  T2
+  T3
+}
+
+enum RiskTier {
+  LOW
+  WATCH
+  ELEVATED
+  HIGH
+}
+
+enum ModelStatus {
+  DEVELOPMENT
+  VALIDATION
+  APPROVED
+  ACTIVE
+  RETIRED
+}
+
+enum ReviewDecision {
+  CONFIRM
+  DISMISS
+  ESCALATE
+  DEFER
+}
+
+enum OverrideReason {
+  ALREADY_TRANSFERRED
+  ABSENCE_EXPLAINED_ILLNESS
+  ABSENCE_EXPLAINED_BEREAVEMENT
+  ABSENCE_EXPLAINED_TRAVEL
+  SUPPORT_ALREADY_IN_PLACE
+  LEVIES_WAIVED
+  DATA_ENTRY_ERROR
+  STAFF_CONCERN_NOT_IN_DATA
+  HOUSEHOLD_CIRCUMSTANCES_CHANGED
+  OTHER_RECORDED_OFFLINE
+}
+
+enum SafeguardingCategory {
+  IMMEDIATE_SAFETY
+  HARM_TO_SELF
+  ABUSE_OR_NEGLECT
+  EXPLOITATION_OR_CHILD_LABOUR
+  PREGNANCY_OR_PARENTING
+  HEALTH_NEEDS_REFERRAL
+  OTHER_WELFARE_CONCERN
+}
+
+enum SafeguardingReferral {
+  HEAD_TEACHER
+  SCHOOL_GC_COORDINATOR
+  DISTRICT_GC_COORDINATOR
+  DEPT_SOCIAL_WELFARE
+  POLICE_DOVVSU
+  GHANA_HEALTH_SERVICE
+}
+
+enum NotificationChannel {
+  NONE
+  SMS
+  SMS_PLUS_CALL
+}
+
+enum UploadStatus {
+  RECEIVED
+  VALIDATING
+  AWAITING_MODEL_APPROVAL
+  SCORING
+  COMPLETED
+  FAILED
+}
+
+enum InterventionStatus {
+  PROPOSED
+  IN_PROGRESS
+  COMPLETED
+  CANCELLED
+}
+
+// --------------------------------------------------------------------------
+// Tenancy: School
+// --------------------------------------------------------------------------
+
+model School {
+  id                   String       @id @default(cuid())
+  name                 String
+  schoolCode           String       @unique
+  registrationNumber   String?
+  district             String
+  region               String
+  address              String?
+  contactEmail         String?
+  contactPhone         String?
+  status               SchoolStatus @default(ONBOARDING)
+  onboardingNotes      String?
+  onboardedByAdminId   String?
+  smsPerTermCapDefault Int          @default(3)
+  createdAt            DateTime     @default(now())
+  updatedAt            DateTime     @updatedAt
+
+  teachers        Teacher[]
+  classes         Class[]
+  students        Student[]
+  observations    StudentObservation[]
+  riskAssessments RiskAssessment[]
+  needsProfiles   NeedsProfile[]
+  escalations     SafeguardingEscalation[]
+  notifications   NotificationLog[]
+  csvUploads      CsvUpload[]
+  auditLogs       AuditLog[]
+  interventions   Intervention[]
+
+  @@index([district])
+  @@index([region])
+  @@index([status])
+}
+
+// --------------------------------------------------------------------------
+// Teacher / auth
+// --------------------------------------------------------------------------
+
+model Teacher {
+  id                String        @id @default(cuid())
+  schoolId          String?
+  school            School?       @relation(fields: [schoolId], references: [id])
+  firstName         String
+  lastName          String
+  email             String        @unique
+  phone             String?
+  passwordHash      String
+  role              TeacherRole   @default(TEACHER)
+  status            AccountStatus @default(PENDING_EMAIL_VERIFICATION)
+  emailVerified     Boolean       @default(false)
+  phoneVerified     Boolean       @default(false)
+  approvedByAdminId String?
+  approvedAt        DateTime?
+  lastLoginAt       DateTime?
+  failedLoginCount  Int           @default(0)
+  lockedUntil       DateTime?
+  createdAt         DateTime      @default(now())
+  updatedAt         DateTime      @updatedAt
+
+  refreshTokens          RefreshToken[]
+  emailVerifications     EmailVerificationToken[]
+  passwordResets         PasswordResetToken[]
+  reviewOutcomes         ReviewOutcome[]
+  needsProfilesConducted NeedsProfile[]           @relation("ConductedBy")
+  escalationsRaised      SafeguardingEscalation[] @relation("RaisedBy")
+  csvUploads             CsvUpload[]
+  auditLogs              AuditLog[]
+  callTasksAssigned      CallTask[]
+  interventionsOwned     Intervention[]
+  classesOwned           Class[]                  @relation("ClassOwner")
+
+  @@index([schoolId])
+  @@index([role])
+  @@index([status])
+}
+
+model RefreshToken {
+  id                String    @id @default(cuid())
+  teacherId         String
+  teacher           Teacher   @relation(fields: [teacherId], references: [id])
+  tokenHash         String    @unique
+  issuedAt          DateTime  @default(now())
+  expiresAt         DateTime
+  revokedAt         DateTime?
+  replacedByTokenId String?
+
+  @@index([teacherId])
+}
+
+model EmailVerificationToken {
+  id        String    @id @default(cuid())
+  teacherId String
+  teacher   Teacher   @relation(fields: [teacherId], references: [id])
+  tokenHash String    @unique
+  expiresAt DateTime
+  usedAt    DateTime?
+  createdAt DateTime  @default(now())
+
+  @@index([teacherId])
+}
+
+model PasswordResetToken {
+  id        String    @id @default(cuid())
+  teacherId String
+  teacher   Teacher   @relation(fields: [teacherId], references: [id])
+  tokenHash String    @unique
+  expiresAt DateTime
+  usedAt    DateTime?
+  createdAt DateTime  @default(now())
+
+  @@index([teacherId])
+}
+
+// --------------------------------------------------------------------------
+// Class / Student
+// --------------------------------------------------------------------------
+
+model Class {
+  id           String     @id @default(cuid())
+  schoolId     String
+  school       School     @relation(fields: [schoolId], references: [id])
+  ownerId      String
+  owner        Teacher    @relation("ClassOwner", fields: [ownerId], references: [id])
+  name         String
+  gradeLevel   GradeLevel
+  academicYear Int
+  createdAt    DateTime   @default(now())
+  updatedAt    DateTime   @updatedAt
+
+  students   Student[]
+  csvUploads CsvUpload[]
+
+  @@unique([schoolId, name, academicYear])
+  @@index([schoolId])
+  @@index([ownerId])
+}
+
+/// A student's stable identity + enrolment. Deliberately holds NO direct
+/// personal identifiers beyond a link to StudentIdentity, so a query for
+/// "students in class X" does not incidentally return names or phone numbers.
+model Student {
+  id         String     @id @default(cuid())
+  schoolId   String
+  school     School     @relation(fields: [schoolId], references: [id])
+  classId    String?
+  class      Class?     @relation(fields: [classId], references: [id])
+  studentKey String     @unique
+  gradeLevel GradeLevel
+  externalId String?
+  isActive   Boolean    @default(true)
+  createdAt  DateTime   @default(now())
+  updatedAt  DateTime   @updatedAt
+
+  identity        StudentIdentity?
+  observations    StudentObservation[]
+  riskAssessments RiskAssessment[]
+  needsProfiles   NeedsProfile[]
+  escalations     SafeguardingEscalation[]
+  notifications   NotificationLog[]
+  callTasks       CallTask[]
+  interventions   Intervention[]
+
+  @@index([schoolId])
+  @@index([classId])
+}
+
+/// Direct identifiers. Physically separate table; never joined into any
+/// payload sent to the ML service. Access-controlled more tightly than the
+/// rest of the schema at the application layer (Phase 3 authorization rules).
+model StudentIdentity {
+  id             String    @id @default(cuid())
+  studentId      String    @unique
+  student        Student   @relation(fields: [studentId], references: [id])
+  studentName    String
+  guardianName   String?
+  guardianMsisdn String?
+  dateOfBirth    DateTime?
+  createdAt      DateTime  @default(now())
+  updatedAt      DateTime  @updatedAt
+}
+
+// --------------------------------------------------------------------------
+// Operational data vs training data (Section 79)
+// --------------------------------------------------------------------------
+
+/// One learner, one week. Operational data — what a school actually submits.
+/// Mirrors edutrace.records.StudentObservation field-for-field so the Node
+/// layer can validate shape before ever calling the ML service.
+model StudentObservation {
+  id        String  @id @default(cuid())
+  schoolId  String
+  school    School  @relation(fields: [schoolId], references: [id])
+  studentId String
+  student   Student @relation(fields: [studentId], references: [id])
+
+  academicYear Int
+  term         Term
+  week         Int
+  gradeLevel   GradeLevel
+
+  attendanceRateTermToDate Float?
+  attendanceRateLast4w     Float?
+  attendanceRatePriorTerm  Float?
+  attendanceTrend4w        Float?
+  consecutiveAbsences      Int?
+  longestAbsenceStreakTerm Int?
+  absencesPriorYear        Int?
+  weeklyAttendanceHistory  Float[]
+
+  avgExamScore             Float?
+  avgExamScorePrevTerm     Float?
+  assessmentCompletionRate Float?
+  coreSubjectFailures      Int?
+
+  ageYears             Float?
+  repeatedAGrade       Boolean?
+  schoolTransfersCount Int?
+  beceRegistered       Boolean?
+
+  feeStatus          String?
+  feeArrearsTerms    Int?
+  hasTextbooks       Boolean?
+  hasUniform         Boolean?
+  siblingsInSchool   Int?
+  doesPaidOrFarmWork Boolean?
+  guardianType       String?
+
+  distanceBand String?
+
+  behaviourFlag          String?
+  behaviourIncidentsTerm Int?
+  healthAbsenceDaysTerm  Int?
+
+  // Protected attributes — audit only, never sent to the model as features.
+  sex             String?
+  region          String?
+  povertyQuintile Int?
+
+  sourceUploadId String?
+  csvUpload      CsvUpload? @relation(fields: [sourceUploadId], references: [id])
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  riskAssessment RiskAssessment?
+
+  @@unique([studentId, academicYear, term, week])
+  @@index([schoolId])
+  @@index([studentId])
+  @@index([schoolId, academicYear, term, week])
+}
+
+/// A de-identified, approved, provenance-tracked row destined for model
+/// training. Populated ONLY by an explicit, audited promotion job — never
+/// automatically from StudentObservation. See Section 79 / ARCHITECTURE.md.
+model TrainingDatasetRecord {
+  id                    String   @id @default(cuid())
+  datasetName           String
+  datasetVersion        String
+  sourceObservationHash String // hash of the source row, not a live FK — deliberately not traceable back without the promotion audit record
+  featureVector         Json
+  label                 Int?
+  deidentifiedAt        DateTime @default(now())
+  approvedByAdminId     String
+  qualityCheckPassed    Boolean  @default(false)
+  fairnessCheckPassed   Boolean  @default(false)
+  provenanceNote        String
+
+  @@index([datasetName, datasetVersion])
+}
+
+// --------------------------------------------------------------------------
+// CSV ingestion
+// --------------------------------------------------------------------------
+
+model CsvUpload {
+  id                String       @id @default(cuid())
+  schoolId          String
+  school            School       @relation(fields: [schoolId], references: [id])
+  uploadedById      String
+  uploadedBy        Teacher      @relation(fields: [uploadedById], references: [id])
+  classId           String
+  class             Class        @relation(fields: [classId], references: [id])
+  originalFilename  String
+  storagePath       String
+  status            UploadStatus @default(RECEIVED)
+  rowsTotal         Int?
+  rowsAccepted      Int?
+  rowsRejected      Int?
+  errorSummary      Json?
+  capacityRequested Int?
+  createdAt         DateTime     @default(now())
+  completedAt       DateTime?
+
+  observations StudentObservation[]
+
+  @@index([schoolId])
+  @@index([classId])
+  @@index([status])
+}
+
+// --------------------------------------------------------------------------
+// Model governance
+// --------------------------------------------------------------------------
+
+/// One row per model version reported by the ML service's /model-card
+/// (or its internal equivalent). Status here is the enforcement point for
+/// Section 2: no production scoring without an APPROVED + ACTIVE model.
+model ModelRegistration {
+  id                  String      @id @default(cuid())
+  modelVersion        String      @unique
+  contractFingerprint String
+  dataProvenance      String
+  trainingDatasetId   String?
+  trainedAt           DateTime
+  status              ModelStatus @default(DEVELOPMENT)
+  evaluationMetrics   Json
+  knownLimitations    String[]
+  outOfScope          String[]
+  approvedByAdminId   String?
+  approvedAt          DateTime?
+  approvalNote        String?
+  activatedAt         DateTime?
+  retiredAt           DateTime?
+  firstSeenAt         DateTime    @default(now())
+
+  riskAssessments RiskAssessment[]
+
+  @@index([status])
+}
+
+// --------------------------------------------------------------------------
+// Predictions / review / follow-up
+// --------------------------------------------------------------------------
+
+model RiskAssessment {
+  id                  String             @id @default(cuid())
+  schoolId            String
+  school              School             @relation(fields: [schoolId], references: [id])
+  studentId           String
+  student             Student            @relation(fields: [studentId], references: [id])
+  observationId       String             @unique
+  observation         StudentObservation @relation(fields: [observationId], references: [id])
+  modelRegistrationId String
+  modelRegistration   ModelRegistration  @relation(fields: [modelRegistrationId], references: [id])
+
+  risk                Float
+  tier                RiskTier
+  percentileInCohort  Float?
+  drivers             Json
+  protective          Json
+  recourse            Json
+  narrative           String
+  requiresHumanReview Boolean  @default(true)
+  isDemo              Boolean  @default(false)
+
+  scoredAt  DateTime @default(now())
+  latencyMs Float?
+
+  reviewOutcome ReviewOutcome?
+
+  @@index([schoolId])
+  @@index([studentId])
+  @@index([schoolId, tier])
+  @@index([scoredAt])
+}
+
+model ReviewOutcome {
+  id                   String          @id @default(cuid())
+  riskAssessmentId     String          @unique
+  riskAssessment       RiskAssessment  @relation(fields: [riskAssessmentId], references: [id])
+  reviewerId           String
+  reviewer             Teacher         @relation(fields: [reviewerId], references: [id])
+  reviewerRole         String
+  decision             ReviewDecision
+  reason               OverrideReason?
+  adjustTierBy         Int             @default(0)
+  modelTier            RiskTier
+  finalTier            RiskTier
+  overridden           Boolean         @default(false)
+  notificationUnlocked Boolean         @default(false)
+  note                 String?
+  reviewedAt           DateTime        @default(now())
+
+  @@index([reviewerId])
+}
+
+// --------------------------------------------------------------------------
+// Support conversation / needs profile (Section: questionnaire workflow)
+// --------------------------------------------------------------------------
+
+model NeedsProfile {
+  id               String   @id @default(cuid())
+  schoolId         String
+  school           School   @relation(fields: [schoolId], references: [id])
+  studentId        String
+  student          Student  @relation(fields: [studentId], references: [id])
+  conductedById    String
+  conductedBy      Teacher  @relation("ConductedBy", fields: [conductedById], references: [id])
+  domainsPresent   String[]
+  agreedActions    Json
+  escalationRaised Boolean  @default(false)
+  conductedAt      DateTime @default(now())
+
+  // Deliberately no free-text disclosure field. affectsRiskScore is always
+  // false and is stored to make that guarantee visible in every payload.
+  affectsRiskScore Boolean @default(false)
+
+  @@index([schoolId])
+  @@index([studentId])
+}
+
+// --------------------------------------------------------------------------
+// Safeguarding (metadata only — mirrors Python EscalationRecord exactly)
+// --------------------------------------------------------------------------
+
+model SafeguardingEscalation {
+  id                  String                 @id @default(cuid())
+  schoolId            String
+  school              School                 @relation(fields: [schoolId], references: [id])
+  studentId           String
+  student             Student                @relation(fields: [studentId], references: [id])
+  category            SafeguardingCategory
+  raisedById          String
+  raisedBy            Teacher                @relation("RaisedBy", fields: [raisedById], references: [id])
+  referredTo          SafeguardingReferral[]
+  conversationStopped Boolean                @default(true)
+  learnerInformed     Boolean                @default(true)
+  followUpDue         DateTime?
+  raisedAt            DateTime               @default(now())
+
+  // NOTE: intentionally no content/detail/notes field on this model.
+  // Do not add one — see edutrace.conversation.safeguarding docstring for why.
+
+  @@index([schoolId])
+  @@index([studentId])
+  @@index([category])
+}
+
+// --------------------------------------------------------------------------
+// Notifications / SMS
+// --------------------------------------------------------------------------
+
+model NotificationLog {
+  id                String              @id @default(cuid())
+  schoolId          String
+  school            School              @relation(fields: [schoolId], references: [id])
+  studentId         String
+  student           Student             @relation(fields: [studentId], references: [id])
+  channel           NotificationChannel
+  templateKey       String?
+  segments          Int?
+  encoding          String?
+  provider          String?
+  providerMessageId String?
+  accepted          Boolean?
+  suppressedReason  String?
+  sentAt            DateTime            @default(now())
+
+  @@index([schoolId])
+  @@index([studentId])
+}
+
+model CallTask {
+  id           String    @id @default(cuid())
+  studentId    String
+  student      Student   @relation(fields: [studentId], references: [id])
+  assignedToId String?
+  assignedTo   Teacher?  @relation(fields: [assignedToId], references: [id])
+  reason       String
+  completed    Boolean   @default(false)
+  outcome      String?
+  createdAt    DateTime  @default(now())
+  completedAt  DateTime?
+
+  @@index([studentId])
+  @@index([assignedToId])
+}
+
+// --------------------------------------------------------------------------
+// Interventions / follow-ups
+// --------------------------------------------------------------------------
+
+model Intervention {
+  id          String             @id @default(cuid())
+  schoolId    String
+  school      School             @relation(fields: [schoolId], references: [id])
+  studentId   String
+  student     Student            @relation(fields: [studentId], references: [id])
+  ownedById   String
+  ownedBy     Teacher            @relation(fields: [ownedById], references: [id])
+  description String
+  status      InterventionStatus @default(PROPOSED)
+  dueAt       DateTime?
+  createdAt   DateTime           @default(now())
+  updatedAt   DateTime           @updatedAt
+
+  followUps InterventionFollowUp[]
+
+  @@index([schoolId])
+  @@index([studentId])
+  @@index([status])
+}
+
+model InterventionFollowUp {
+  id             String       @id @default(cuid())
+  interventionId String
+  intervention   Intervention @relation(fields: [interventionId], references: [id])
+  note           String
+  createdAt      DateTime     @default(now())
+
+  @@index([interventionId])
+}
+
+// --------------------------------------------------------------------------
+// Audit log
+// --------------------------------------------------------------------------
+
+/// Append-only by convention (enforced in the service layer, not the DB, so
+/// we can still add columns via migration). Mirrors the Python AuditLog's
+/// forbidden-keys guarantee: the application layer must never write PII or
+/// disclosure content into `payload`.
+model AuditLog {
+  id        String   @id @default(cuid())
+  schoolId  String?
+  school    School?  @relation(fields: [schoolId], references: [id])
+  actorId   String?
+  actor     Teacher? @relation(fields: [actorId], references: [id])
+  event     String
+  payload   Json
+  createdAt DateTime @default(now())
+
+  @@index([schoolId])
+  @@index([event])
+  @@index([createdAt])
+}

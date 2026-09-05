@@ -1,0 +1,13 @@
+node_modules/
+.env
+.env.local
+!.env.example
+dist/
+.next/
+__pycache__/
+*.pyc
+*.egg-info/
+.DS_Store
+/services/ml/vendor/.venv/
+/apps/api/prisma/*.db
+audit/

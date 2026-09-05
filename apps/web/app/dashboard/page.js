@@ -1,0 +1,214 @@
+"use client";
+
+import Link from "next/link";
+import { useEffect, useState } from "react";
+import { Workspace, RiskBadge } from "./Workspace";
+import { apiRequest, getCurrentTeacher } from "../lib/api";
+
+const tiers = ["LOW", "WATCH", "ELEVATED", "HIGH"];
+
+export default function DashboardPage() {
+  const [teacher, setTeacher] = useState(null);
+  const [dashboard, setDashboard] = useState(null);
+  const [error, setError] = useState("");
+  const [loading, setLoading] = useState(true);
+  useEffect(() => {
+    setTeacher(getCurrentTeacher());
+    apiRequest("/api/v1/dashboard")
+      .then(setDashboard)
+      .catch((requestError) => setError(requestError.message))
+      .finally(() => setLoading(false));
+  }, []);
+  const firstName = teacher?.firstName || "there";
+  const stats = dashboard?.stats;
+  const totalRisk = Object.values(stats?.riskDistribution || {}).reduce(
+    (sum, value) => sum + value,
+    0,
+  );
+  const recentAssessments = dashboard?.recentAssessments || [];
+  return (
+    <Workspace
+      title={`Good morning, ${firstName}`}
+      subtitle={
+        stats
+          ? `${stats.classCount} class${stats.classCount === 1 ? "" : "es"} in your workspace`
+          : "Your school workspace"
+      }
+    >
+      {/* {error && (
+        <div className="notice" role="alert">
+          {error}
+        </div>
+      )} */}
+      {loading ? (
+        <div className="panel empty-state">
+          <h2>Loading your dashboard</h2>
+          <p>Fetching your school data...</p>
+        </div>
+      ) : (
+        <>
+          <div className="stat-grid">
+            <div className="stat">
+              <div className="stat-label">Students in view</div>
+              <div className="stat-value">{stats?.studentCount || 0}</div>
+              <div className="stat-foot">Your classes</div>
+            </div>
+            <div className="stat">
+              <div className="stat-label">Needs attention</div>
+              <div className="stat-value">
+                {(stats?.riskDistribution?.ELEVATED || 0) +
+                  (stats?.riskDistribution?.HIGH || 0)}
+              </div>
+              <div className="stat-foot">Recorded assessments</div>
+            </div>
+            <div className="stat">
+              <div className="stat-label">Awaiting review</div>
+              <div className="stat-value">{stats?.awaitingReview || 0}</div>
+              <div className="stat-foot">Human review required</div>
+            </div>
+            <div className="stat">
+              <div className="stat-label">Open follow-ups</div>
+              <div className="stat-value">{stats?.openInterventions || 0}</div>
+              <div className="stat-foot">Open interventions</div>
+            </div>
+          </div>
+          {stats?.classCount === 0 && (
+            <div className="notice">
+              <strong>No classes yet.</strong> Go to{" "}
+              <Link className="panel-link" href="/classes">
+                Classes
+              </Link>{" "}
+              to create your first class.
+            </div>
+          )}
+          <div className="grid-2">
+            <section className="panel">
+              <div className="panel-head">
+                <h2>Recorded risk assessments</h2>
+                <Link className="panel-link" href="/students">
+                  View students ↗
+                </Link>
+              </div>
+              {totalRisk === 0 ? (
+                <div className="empty-state compact">
+                  <h3>No assessments yet</h3>
+                  <p>
+                    Risk distribution will appear here after approved model
+                    results are recorded.
+                  </p>
+                </div>
+              ) : (
+                <div className="risk-list">
+                  {tiers.map((tier) => {
+                    const count = stats.riskDistribution?.[tier] || 0;
+                    return (
+                      <div className="risk-line" key={tier}>
+                        <label>{tier}</label>
+                        <div className="risk-track">
+                          <div
+                            className={`risk-fill ${tier.toLowerCase()}`}
+                            style={{ width: `${(count / totalRisk) * 100}%` }}
+                          />
+                        </div>
+                        <span className="risk-count">{count}</span>
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
+            </section>
+            <section className="panel">
+              <div className="panel-head">
+                <h2>Tasks requiring attention</h2>
+                <Link className="panel-link" href="/notifications">
+                  All tasks
+                </Link>
+              </div>
+              {(stats?.awaitingReview || 0) === 0 &&
+              (stats?.openInterventions || 0) === 0 ? (
+                <div className="empty-state compact">
+                  <h3>Nothing requiring attention</h3>
+                  <p>New reviews and follow-ups will appear here.</p>
+                </div>
+              ) : (
+                <div className="task">
+                  <span className="task-dot" />
+                  <div>
+                    <p>
+                      {stats.awaitingReview} assessment
+                      {stats.awaitingReview === 1 ? "" : "s"} awaiting review
+                    </p>
+                    <small>Open the student list to review</small>
+                  </div>
+                </div>
+              )}
+            </section>
+          </div>
+          <section className="panel page-card">
+            <div className="panel-head">
+              <h2>Recent assessments</h2>
+              <Link className="panel-link" href="/students">
+                Open student list ↗
+              </Link>
+            </div>
+            {recentAssessments.length === 0 ? (
+              <div className="empty-state compact">
+                <h3>No recent assessments</h3>
+                <p>
+                  Student assessment history will appear here when available.
+                </p>
+              </div>
+            ) : (
+              <div className="table-wrap">
+                <table>
+                  <thead>
+                    <tr>
+                      <th>Student</th>
+                      <th>Class</th>
+                      <th>Signal</th>
+                      <th>Model</th>
+                      <th>Review</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {recentAssessments.map((assessment) => (
+                      <tr key={assessment.id}>
+                        <td>
+                          <strong>
+                            {assessment.student.identity?.studentName ||
+                              "Unnamed student"}
+                          </strong>
+                          <div className="td-muted">
+                            {assessment.student.externalId ||
+                              assessment.student.studentKey.slice(0, 8)}
+                          </div>
+                        </td>
+                        <td>
+                          {assessment.student.class?.name || "Unassigned"}
+                        </td>
+                        <td>
+                          <RiskBadge>{assessment.tier}</RiskBadge>
+                        </td>
+                        <td className="td-muted">
+                          {assessment.modelRegistration.modelVersion}
+                        </td>
+                        <td>
+                          <Link
+                            className="panel-link"
+                            href={`/students/${assessment.student.id}`}
+                          >
+                            Review ↗
+                          </Link>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            )}
+          </section>
+        </>
+      )}
+    </Workspace>
+  );
+}
