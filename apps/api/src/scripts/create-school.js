@@ -1,15 +1,14 @@
-import crypto from "node:crypto";
 import { fileURLToPath } from "node:url";
 import { resolve, dirname } from "node:path";
 import argon2 from "argon2";
-import { PrismaClient } from "@prisma/client";
+import prismaPackage from "@prisma/client";
 import dotenv from "dotenv";
 
 dotenv.config({
   path: resolve(dirname(fileURLToPath(import.meta.url)), "../../../../.env"),
 });
 
-const prisma = new PrismaClient();
+const prisma = new prismaPackage.PrismaClient();
 
 function argument(name, fallback = undefined) {
   const prefix = `--${name}=`;

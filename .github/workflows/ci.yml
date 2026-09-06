@@ -1,0 +1,34 @@
+name: CI
+
+on:
+  push:
+  pull_request:
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    env:
+      NODE_ENV: test
+      PORT: 5000
+      FRONTEND_URL: http://localhost:3000
+      DATABASE_URL: postgresql://test:test@localhost:5432/test
+      DIRECT_URL: postgresql://test:test@localhost:5432/test
+      REDIS_URL: redis://localhost:6379
+      ML_SERVICE_URL: http://localhost:8000
+      ML_SERVICE_SHARED_SECRET: ci-shared-secret-0123456789
+      ML_SERVICE_API_KEY: ci-ml-api-key
+      JWT_ACCESS_SECRET: ci-access-secret-0123456789
+      JWT_REFRESH_SECRET: ci-refresh-secret-0123456789
+      PII_PSEUDONYM_SALT: ci-pseudonym-salt-0123456789
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+      - run: npm ci
+      - run: npm run db:generate --workspace=@edutrace/api
+      - run: npm run validate:db
+      - run: npm run lint:api
+      - run: npm run test:api
+      - run: npm run build:web

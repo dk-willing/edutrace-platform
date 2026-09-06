@@ -62,7 +62,6 @@ export function notFoundHandler(req, res, _next) {
 }
 
 // Final error handler — must be registered last, after notFoundHandler.
-// eslint-disable-next-line no-unused-vars
 export function errorHandler(err, req, res, _next) {
   if (err instanceof ZodError) {
     return res.status(422).json({

@@ -59,7 +59,6 @@ router.post(
     if (env.NODE_ENV !== "production") {
       const verificationUrl = `${env.FRONTEND_URL}/verify-email?token=${encodeURIComponent(result.verificationToken)}`;
       // Development-only convenience. Never expose verification tokens in API responses or production logs.
-      // eslint-disable-next-line no-console
       console.log(
         `\n[EduTrace] Verification link for ${result.teacher.email}:\n${verificationUrl}\n`,
       );

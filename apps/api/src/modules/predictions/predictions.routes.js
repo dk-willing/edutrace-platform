@@ -125,7 +125,7 @@ async function forwardToModel(file, capacity) {
       },
       body,
     });
-  } catch (error) {
+  } catch {
     throw new AppError(
       "Risk analysis is unavailable. Start the ML service and try again.",
       { statusCode: 503, code: "ML_SERVICE_UNAVAILABLE", details: { target } },

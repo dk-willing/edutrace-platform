@@ -8,7 +8,7 @@ schema.
 edutrace-platform/
 ├── apps/
 │   ├── api/            Node.js/Express backend (JavaScript, ESM, NOT TypeScript)
-│   └── web/             Next.js frontend (built in a later phase)
+│   └── web/             Next.js teacher/admin frontend
 ├── services/
 │   └── ml/               FastAPI wrapper around the vendored edutrace Python package
 │       ├── vendor_edutrace/            the supplied edutrace-v0.2.0 package, unmodified
@@ -89,8 +89,12 @@ sample rows.
 
 ## Phase status
 
-See `docs/PHASE_PLAN.md`. This commit delivers **Phase 1 (repo/architecture)**
-and **Phase 2 (database schema)**.
+See `docs/PHASE_PLAN.md`. The repository now includes the core teacher
+workflow: authentication, school/class/student management, roster validation
+and import, ML scoring proxying, analysis reports, notifications, Arkesel
+teacher alerts, and account recovery. Production activation still requires
+model governance approval, managed infrastructure, security review, and
+broader integration/e2e testing.
 
 ## Create New School
 

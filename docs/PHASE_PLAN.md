@@ -3,26 +3,26 @@
 Tracking against the 18 phases in the master spec. Each phase ends with tests
 passing before moving on.
 
-| Phase | Scope                                             | Status                                  |
-| ----- | ------------------------------------------------- | --------------------------------------- |
-| 1     | Architecture and repository setup                 | **Done (this commit)**                  |
-| 2     | Database schema and migrations                    | **Done (this commit)**                  |
-| 3     | Authentication and authorization                  | **In progress (core flow implemented)** |
-| 4     | School and teacher onboarding                     | **Core flow implemented**               |
-| 5     | Class and student management                      | **Core API implemented**                |
-| 6     | CSV ingestion                                     | Pending                                 |
-| 7     | Python AI service integration (Node ↔ ML service) | Pending                                 |
-| 8     | Predictions and explainability                    | Pending                                 |
-| 9     | Questionnaire/support system                      | Pending                                 |
-| 10    | Safeguarding                                      | Pending                                 |
-| 11    | Interventions and follow-ups                      | Pending                                 |
-| 12    | Arkesel SMS                                       | Pending                                 |
-| 13    | Dashboards and reporting                          | Pending                                 |
-| 14    | Admin portal                                      | **School-management UI implemented**    |
-| 15    | Security hardening                                | Pending                                 |
-| 16    | Testing                                           | Pending                                 |
-| 17    | Docker/deployment                                 | Pending                                 |
-| 18    | Documentation and final QA                        | Pending                                 |
+| Phase | Scope                                             | Status                                                       |
+| ----- | ------------------------------------------------- | ------------------------------------------------------------ |
+| 1     | Architecture and repository setup                 | **Done (this commit)**                                       |
+| 2     | Database schema and migrations                    | **Done (this commit)**                                       |
+| 3     | Authentication and authorization                  | **Core flow implemented; production review remains**         |
+| 4     | School and teacher onboarding                     | **Core flow implemented**                                    |
+| 5     | Class and student management                      | **Core API implemented**                                     |
+| 6     | CSV ingestion                                     | **Implemented; integration tests remain**                    |
+| 7     | Python AI service integration (Node ↔ ML service) | **Implemented; model approval required**                     |
+| 8     | Predictions and explainability                    | **Implemented; model approval required**                     |
+| 9     | Questionnaire/support system                      | Pending                                                      |
+| 10    | Safeguarding                                      | Pending                                                      |
+| 11    | Interventions and follow-ups                      | Pending                                                      |
+| 12    | Arkesel SMS                                       | **Implemented; provider verification remains**               |
+| 13    | Dashboards and reporting                          | **Implemented; acceptance QA remains**                       |
+| 14    | Admin portal                                      | **School-management UI implemented**                         |
+| 15    | Security hardening                                | **Baseline implemented; production review remains**          |
+| 16    | Testing                                           | **Smoke coverage added; broader coverage remains**           |
+| 17    | Docker/deployment                                 | **Local Compose implemented; production deployment remains** |
+| 18    | Documentation and final QA                        | **In progress**                                              |
 
 ## Phase 1 deliverables (this commit)
 
@@ -49,16 +49,18 @@ passing before moving on.
   promotes a row from one to the other automatically; that will be an
   explicit, audited admin action implemented in Phase 7/8.
 
-## What is deliberately NOT built yet
+## Current production gates
 
-- No actual migration has been run against a live Postgres instance — there
-  isn't one in this sandbox. `schema.prisma` is written to be run with
-  `npx prisma migrate dev` against a real database in Phase 3, and the
-  Docker Compose file provisions that database.
-- No frontend pages yet — `apps/web` is a placeholder until Phase 4 needs a
-  login screen.
-- No real trained model. Both supplied models remain registered as
-  `DEVELOPMENT` and unapproved, per `STATUS.md`.
+- Migrations exist and are deployable; production still requires a reviewed
+  migration rollout against a managed Postgres database.
+- The web app now contains teacher, admin, import, student, dashboard, report,
+  notification, and account-management workflows.
+- The supplied model remains a development/demo artifact. It must not be
+  approved for real learners until validation, fairness, governance, and
+  safeguarding review are complete.
+- Production still requires managed secrets, SMTP and Arkesel credentials,
+  sender-ID approval, backups, observability, rate-limit review, and formal
+  security/acceptance testing.
 
 ## Phase 3 work delivered so far
 

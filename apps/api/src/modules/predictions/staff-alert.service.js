@@ -6,8 +6,6 @@ export async function sendUrgentStaffAlert({
   teacherMsisdn,
   schoolName,
   urgentCount,
-  schoolId,
-  teacherId,
 }) {
   if (!urgentCount)
     return { attempted: false, accepted: false, reason: "no urgent students" };
