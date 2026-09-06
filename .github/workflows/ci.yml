@@ -41,6 +41,13 @@ jobs:
       - name: Lint API
         run: npm run lint:api
       - name: Test API
-        run: npm run test:api
+        run: npm run test:api -- --test-reporter=spec
+      - name: API runtime diagnostics on failure
+        if: failure()
+        run: |
+          node --version
+          npm --version
+          npm ls express @prisma/client prisma --workspace=@edutrace/api
+          node -e "console.log(require.resolve('express', { paths: ['./apps/api'] }))"
       - name: Build web application
         run: npm run build:web
