@@ -26,9 +26,10 @@ jobs:
         with:
           node-version: 20
           cache: npm
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
       - run: npm ci
       - run: npm run db:generate --workspace=@edutrace/api
-      - run: npm run validate:db
-      - run: npm run lint:api
-      - run: npm run test:api
-      - run: npm run build:web
+      - run: python -m py_compile services/ml/app/main.py
+      - run: npm run check
