@@ -10,6 +10,7 @@ jobs:
     runs-on: ubuntu-latest
     env:
       NODE_ENV: test
+      NODE_OPTIONS: --unhandled-rejections=strict
       PORT: 5000
       FRONTEND_URL: http://localhost:3000
       NEXT_PUBLIC_API_URL: http://localhost:5000
@@ -41,7 +42,7 @@ jobs:
       - name: Lint API
         run: npm run lint:api
       - name: Test API
-        run: npm run test:api -- --test-reporter=spec
+        run: npm run test:api
       - name: API runtime diagnostics on failure
         if: failure()
         run: |

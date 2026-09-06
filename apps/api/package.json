@@ -11,7 +11,7 @@
     "start": "node src/server.js",
     "db:generate": "node src/scripts/generate-prisma.js",
     "create:school": "node src/scripts/create-school.js",
-    "test": "node --test src",
+    "test": "node --test --test-concurrency=1 src/health.test.js",
     "lint": "eslint src --ext .js"
   },
   "dependencies": {
