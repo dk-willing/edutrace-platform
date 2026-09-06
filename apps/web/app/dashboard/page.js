@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useEffect, useState } from "react";
 import { Workspace, RiskBadge, riskTierLabel } from "./Workspace";
 import { apiRequest, getCurrentTeacher } from "../lib/api";
+import { PageSkeleton } from "../components/PageSkeleton";
 
 const tiers = ["LOW", "WATCH", "ELEVATED", "HIGH"];
 
@@ -41,10 +42,7 @@ export default function DashboardPage() {
         </div>
       )}
       {loading ? (
-        <div className="panel empty-state">
-          <h2>Loading your dashboard</h2>
-          <p>Fetching your school data...</p>
-        </div>
+        <PageSkeleton rows={5} cards={4} />
       ) : (
         <>
           <div className="stat-grid">

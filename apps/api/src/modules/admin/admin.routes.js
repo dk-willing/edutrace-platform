@@ -28,6 +28,16 @@ const schoolSchema = z.object({
 
 router.use(requireAuth);
 
+async function getAdminSchoolIds(req) {
+  if (req.auth.role === "SCHOOL_ADMIN")
+    return [req.auth.schoolId].filter(Boolean);
+  const schools = await prisma.school.findMany({
+    where: { onboardedByAdminId: req.auth.teacherId },
+    select: { id: true },
+  });
+  return schools.map((school) => school.id);
+}
+
 router.post(
   "/schools",
   requireRole("SYSTEM_ADMIN"),
@@ -67,8 +77,9 @@ router.post(
 router.get(
   "/schools",
   requireRole("SYSTEM_ADMIN"),
-  asyncHandler(async (_req, res) => {
+  asyncHandler(async (req, res) => {
     const schools = await prisma.school.findMany({
+      where: { onboardedByAdminId: req.auth.teacherId },
       orderBy: { createdAt: "desc" },
       select: {
         id: true,
@@ -92,12 +103,10 @@ router.post(
       where: { id: req.params.teacherId },
     });
     if (!teacher) throw new NotFoundError("Teacher not found.");
-    if (
-      req.auth.role === "SCHOOL_ADMIN" &&
-      teacher.schoolId !== req.auth.schoolId
-    ) {
+    const schoolIds = await getAdminSchoolIds(req);
+    if (!teacher.schoolId || !schoolIds.includes(teacher.schoolId)) {
       throw new ForbiddenError(
-        "You cannot approve a teacher from another school.",
+        "You cannot approve a teacher outside your school administration scope.",
       );
     }
     const updated = await prisma.teacher.update({
@@ -139,11 +148,9 @@ router.get(
   "/teachers",
   requireRole("SYSTEM_ADMIN", "SCHOOL_ADMIN"),
   asyncHandler(async (req, res) => {
+    const schoolIds = await getAdminSchoolIds(req);
     const teachers = await prisma.teacher.findMany({
-      where:
-        req.auth.role === "SCHOOL_ADMIN"
-          ? { schoolId: req.auth.schoolId }
-          : undefined,
+      where: { schoolId: { in: schoolIds } },
       select: {
         id: true,
         firstName: true,

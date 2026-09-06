@@ -10,6 +10,7 @@
   "scripts": {
     "dev:api": "npm run dev --workspace=@edutrace/api",
     "dev:web": "npm run dev --workspace=@edutrace/web",
+    "dev:ml": "services/ml/.venv/Scripts/python.exe -m uvicorn app.main:app --app-dir services/ml --host 127.0.0.1 --port 8000",
     "api:generate": "npm run db:generate --workspace=@edutrace/api",
     "db:generate": "npm run generate --workspace=@edutrace/db",
     "db:migrate": "npm run migrate:dev --workspace=@edutrace/db",

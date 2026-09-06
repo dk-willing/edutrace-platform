@@ -103,5 +103,3 @@ npm run create:school --workspace=@edutrace/api -- \
  --admin-password="change-this-password"
 
 # TEST
-
-School ID: cmtp06rsf0001i98ua86qmop2

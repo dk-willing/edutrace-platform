@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import { Workspace, riskTierLabel } from "../dashboard/Workspace";
 import { apiRequest, downloadFile } from "../lib/api";
+import { PageSkeleton } from "../components/PageSkeleton";
 
 export default function ReportsPage() {
   const [report, setReport] = useState(null);
@@ -10,15 +11,18 @@ export default function ReportsPage() {
   const [error, setError] = useState("");
 
   useEffect(() => {
-    Promise.all([
+    Promise.allSettled([
       apiRequest("/api/v1/reports/school"),
       apiRequest("/api/v1/reports/analysis"),
-    ])
-      .then(([result, history]) => {
-        setReport(result.report);
-        setAnalysisReports(history.reports || []);
-      })
-      .catch((requestError) => setError(requestError.message));
+    ]).then(([result, history]) => {
+      if (result.status === "fulfilled") setReport(result.value.report);
+      else setError(result.reason.message);
+      if (history.status === "fulfilled") {
+        setAnalysisReports(history.value.reports || []);
+      } else if (result.status === "fulfilled") {
+        setError(history.reason.message);
+      }
+    });
   }, []);
 
   return (
@@ -38,10 +42,7 @@ export default function ReportsPage() {
       )}
 
       {!report ? (
-        <div className="panel empty-state">
-          <h2>Loading report</h2>
-          <p>Preparing your school report...</p>
-        </div>
+        <PageSkeleton rows={6} cards={4} />
       ) : (
         <>
           <div className="stat-grid">
