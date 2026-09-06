@@ -71,14 +71,25 @@ SMTP_PORT=587
 SMTP_USER=...
 SMTP_PASSWORD=...
 EMAIL_FROM_ADDRESS=no-reply@example.com
-EDUTRACE_SMS_PROVIDER=arkesel
-ARKESEL_API_KEY=...
-EDUTRACE_SMS_SENDER_ID=...
+EDUTRACE_SMS_PROVIDER=console
+ARKESEL_API_KEY=
+EDUTRACE_SMS_SENDER_ID=EDUTRACE
 ```
 
 The API refuses production startup without SMTP credentials. The ML service
-must receive the same shared secret and API key as the API. The Arkesel sender
-ID must be approved before real messages are enabled.
+must receive the same shared secret and API key as the API. Keep SMS on
+`console` for the first launch unless Arkesel has been separately verified;
+switch to `arkesel` only after adding the API key and approved sender ID.
+
+Generate fresh application secrets locally with:
+
+```powershell
+npm run secrets:generate
+```
+
+This creates the ignored `.env.production.generated` file. Copy its values
+into your platform secret manager, then fill in the managed database, Redis,
+frontend domain, and transactional email provider values.
 
 ## Release sequence
 

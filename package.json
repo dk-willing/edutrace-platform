@@ -11,6 +11,7 @@
     "dev:api": "npm run dev --workspace=@edutrace/api",
     "dev:web": "npm run dev --workspace=@edutrace/web",
     "dev:ml": "services/ml/.venv/Scripts/python.exe -m uvicorn app.main:app --app-dir services/ml --host 127.0.0.1 --port 8000",
+    "secrets:generate": "node scripts/generate-production-secrets.mjs",
     "test:api": "npm test --workspace=@edutrace/api",
     "lint:api": "npm run lint --workspace=@edutrace/api",
     "validate:db": "npm run validate --workspace=@edutrace/db",
