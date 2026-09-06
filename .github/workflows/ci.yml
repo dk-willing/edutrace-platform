@@ -3,6 +3,7 @@ name: CI
 on:
   push:
   pull_request:
+  workflow_dispatch:
 
 jobs:
   validate:
@@ -11,6 +12,7 @@ jobs:
       NODE_ENV: test
       PORT: 5000
       FRONTEND_URL: http://localhost:3000
+      NEXT_PUBLIC_API_URL: http://localhost:5000
       DATABASE_URL: postgresql://test:test@localhost:5432/test
       DIRECT_URL: postgresql://test:test@localhost:5432/test
       REDIS_URL: redis://localhost:6379
@@ -30,6 +32,15 @@ jobs:
         with:
           python-version: "3.12"
       - run: npm ci
-      - run: npm run db:generate --workspace=@edutrace/api
-      - run: python -m py_compile services/ml/app/main.py
-      - run: npm run check
+      - name: Generate Prisma client
+        run: npm run db:generate --workspace=@edutrace/api
+      - name: Compile ML service
+        run: python -m py_compile services/ml/app/main.py
+      - name: Validate database schema
+        run: npm run validate:db
+      - name: Lint API
+        run: npm run lint:api
+      - name: Test API
+        run: npm run test:api
+      - name: Build web application
+        run: npm run build:web
