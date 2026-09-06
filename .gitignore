@@ -13,5 +13,5 @@ __pycache__/
 audit/
 
 .next-dev/
-env.js
+/env.js
 .env.example
