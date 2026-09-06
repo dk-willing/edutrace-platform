@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useEffect, useState } from "react";
-import { Workspace, RiskBadge } from "./Workspace";
+import { Workspace, RiskBadge, riskTierLabel } from "./Workspace";
 import { apiRequest, getCurrentTeacher } from "../lib/api";
 
 const tiers = ["LOW", "WATCH", "ELEVATED", "HIGH"];
@@ -35,11 +35,11 @@ export default function DashboardPage() {
           : "Your school workspace"
       }
     >
-      {/* {error && (
+      {error && (
         <div className="notice" role="alert">
           {error}
         </div>
-      )} */}
+      )}
       {loading ? (
         <div className="panel empty-state">
           <h2>Loading your dashboard</h2>
@@ -52,6 +52,11 @@ export default function DashboardPage() {
               <div className="stat-label">Students in view</div>
               <div className="stat-value">{stats?.studentCount || 0}</div>
               <div className="stat-foot">Your classes</div>
+            </div>
+            <div className="stat">
+              <div className="stat-label">Uploaded observations</div>
+              <div className="stat-value">{stats?.observationCount || 0}</div>
+              <div className="stat-foot">Attendance and school data</div>
             </div>
             <div className="stat">
               <div className="stat-label">Needs attention</div>
@@ -70,6 +75,13 @@ export default function DashboardPage() {
               <div className="stat-label">Open follow-ups</div>
               <div className="stat-value">{stats?.openInterventions || 0}</div>
               <div className="stat-foot">Open interventions</div>
+            </div>
+            <div className="stat">
+              <div className="stat-label">Analysis reports</div>
+              <div className="stat-value">
+                {stats?.analysisReportCount || 0}
+              </div>
+              <div className="stat-foot">Saved scoring runs</div>
             </div>
           </div>
           {stats?.classCount === 0 && (
@@ -103,7 +115,7 @@ export default function DashboardPage() {
                     const count = stats.riskDistribution?.[tier] || 0;
                     return (
                       <div className="risk-line" key={tier}>
-                        <label>{tier}</label>
+                        <label>{riskTierLabel(tier)}</label>
                         <div className="risk-track">
                           <div
                             className={`risk-fill ${tier.toLowerCase()}`}
@@ -207,6 +219,33 @@ export default function DashboardPage() {
               </div>
             )}
           </section>
+          {dashboard?.latestReport && (
+            <section className="panel page-card">
+              <div className="panel-head">
+                <h2>Latest analysis run</h2>
+                <Link className="panel-link" href="/reports">
+                  View reports ↗
+                </Link>
+              </div>
+              <p className="section-sub">
+                {dashboard.latestReport.filename ||
+                  dashboard.latestReport.source}{" "}
+                · {dashboard.latestReport.rowsScored}/
+                {dashboard.latestReport.totalRows} rows scored ·{" "}
+                {new Date(dashboard.latestReport.createdAt).toLocaleString()}
+              </p>
+              <div className="risk-list">
+                {tiers.map((tier) => (
+                  <div className="risk-line" key={tier}>
+                    <label>{riskTierLabel(tier)}</label>
+                    <span className="risk-count">
+                      {dashboard.latestReport.tierCounts?.[tier] || 0}
+                    </span>
+                  </div>
+                ))}
+              </div>
+            </section>
+          )}
         </>
       )}
     </Workspace>

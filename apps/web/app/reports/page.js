@@ -1,16 +1,23 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { Workspace } from "../dashboard/Workspace";
-import { apiRequest } from "../lib/api";
+import { Workspace, riskTierLabel } from "../dashboard/Workspace";
+import { apiRequest, downloadFile } from "../lib/api";
 
 export default function ReportsPage() {
   const [report, setReport] = useState(null);
+  const [analysisReports, setAnalysisReports] = useState([]);
   const [error, setError] = useState("");
 
   useEffect(() => {
-    apiRequest("/api/v1/reports/school")
-      .then((result) => setReport(result.report))
+    Promise.all([
+      apiRequest("/api/v1/reports/school"),
+      apiRequest("/api/v1/reports/analysis"),
+    ])
+      .then(([result, history]) => {
+        setReport(result.report);
+        setAnalysisReports(history.reports || []);
+      })
       .catch((requestError) => setError(requestError.message));
   }, []);
 
@@ -54,6 +61,13 @@ export default function ReportsPage() {
               <div className="stat-foot">Recorded model outputs</div>
             </div>
             <div className="stat">
+              <div className="stat-label">Analysis runs</div>
+              <div className="stat-value">
+                {report.analysisReportCount || 0}
+              </div>
+              <div className="stat-foot">Saved reports</div>
+            </div>
+            <div className="stat">
               <div className="stat-label">Model</div>
               <div className="stat-value" style={{ fontSize: "20px" }}>
                 {report.model?.modelVersion || "Unavailable"}
@@ -71,6 +85,20 @@ export default function ReportsPage() {
                 Generated {new Date(report.generatedAt).toLocaleString()}
               </span>
             </div>
+            <p className="section-sub">
+              These labels show which students may benefit from additional
+              support. They are signals for human review, not conclusions about
+              a student.
+            </p>
+            {report.latestAnalysis && (
+              <div className="notice" role="status">
+                Latest run:{" "}
+                {report.latestAnalysis.filename || report.latestAnalysis.source}{" "}
+                · {report.latestAnalysis.rowsScored}/
+                {report.latestAnalysis.totalRows} rows scored on{" "}
+                {new Date(report.latestAnalysis.createdAt).toLocaleString()}.
+              </div>
+            )}
 
             {report.assessments === 0 ? (
               <div className="empty-state">
@@ -85,7 +113,7 @@ export default function ReportsPage() {
               <div className="risk-list">
                 {["LOW", "WATCH", "ELEVATED", "HIGH"].map((tier) => (
                   <div className="risk-line" key={tier}>
-                    <label>{tier}</label>
+                    <label>{riskTierLabel(tier)}</label>
                     <div className="risk-track">
                       <div
                         className={`risk-fill ${tier.toLowerCase()}`}
@@ -103,6 +131,63 @@ export default function ReportsPage() {
                     </span>
                   </div>
                 ))}
+              </div>
+            )}
+          </section>
+          <section className="panel page-card">
+            <div className="panel-head">
+              <h2>Analysis history</h2>
+              <span className="td-muted">
+                {analysisReports.length} report
+                {analysisReports.length === 1 ? "" : "s"}
+              </span>
+            </div>
+            {!analysisReports.length ? (
+              <div className="empty-state compact">
+                <h3>No analysis runs yet</h3>
+                <p>Each risk analysis run will be saved here.</p>
+              </div>
+            ) : (
+              <div className="table-wrap">
+                <table>
+                  <thead>
+                    <tr>
+                      <th>Date</th>
+                      <th>Source</th>
+                      <th>Rows</th>
+                      <th>Urgent support</th>
+                      <th>Model</th>
+                      <th></th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {analysisReports.map((item) => (
+                      <tr key={item.id}>
+                        <td>{new Date(item.createdAt).toLocaleString()}</td>
+                        <td>{item.filename || item.source}</td>
+                        <td>
+                          {item.rowsScored}/{item.totalRows}
+                        </td>
+                        <td>{item.highCount}</td>
+                        <td>{item.modelVersion || "Unavailable"}</td>
+                        <td>
+                          <button
+                            className="panel-link"
+                            onClick={() =>
+                              downloadFile(
+                                `/api/v1/reports/analysis/${item.id}/download`,
+                                `edutrace-report-${item.id}.pdf`,
+                              )
+                            }
+                            type="button"
+                          >
+                            Download PDF
+                          </button>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
               </div>
             )}
           </section>

@@ -170,6 +170,7 @@ model School {
   csvUploads      CsvUpload[]
   auditLogs       AuditLog[]
   interventions   Intervention[]
+  analysisReports AnalysisReport[]
 
   @@index([district])
   @@index([region])
@@ -211,6 +212,7 @@ model Teacher {
   auditLogs              AuditLog[]
   callTasksAssigned      CallTask[]
   interventionsOwned     Intervention[]
+  analysisReports        AnalysisReport[]
   classesOwned           Class[]                  @relation("ClassOwner")
 
   @@index([schoolId])
@@ -507,6 +509,26 @@ model RiskAssessment {
   @@index([studentId])
   @@index([schoolId, tier])
   @@index([scoredAt])
+}
+
+model AnalysisReport {
+  id            String   @id @default(cuid())
+  schoolId      String
+  school        School   @relation(fields: [schoolId], references: [id])
+  generatedById String
+  generatedBy   Teacher  @relation(fields: [generatedById], references: [id])
+  source        String
+  filename      String?
+  modelVersion  String?
+  totalRows     Int
+  rowsScored    Int
+  highCount     Int      @default(0)
+  tierCounts    Json
+  results       Json
+  createdAt     DateTime @default(now())
+
+  @@index([schoolId, createdAt])
+  @@index([generatedById])
 }
 
 model ReviewOutcome {

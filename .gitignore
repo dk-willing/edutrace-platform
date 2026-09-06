@@ -12,5 +12,5 @@ __pycache__/
 /apps/api/prisma/*.db
 audit/
 
-
+.next-dev/
 env.js

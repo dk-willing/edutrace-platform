@@ -3,7 +3,12 @@
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
-import { apiRequest, clearAccessToken, getCurrentTeacher } from "../lib/api";
+import {
+  apiRequest,
+  clearAccessToken,
+  getAccessToken,
+  getCurrentTeacher,
+} from "../lib/api";
 
 const nav = [
   ["⌂", "Overview", "/dashboard"],
@@ -22,8 +27,16 @@ export function Workspace({ children, title, subtitle, action }) {
   const pathname = usePathname();
   const router = useRouter();
   const [teacher, setTeacher] = useState(null);
+  const [authChecked, setAuthChecked] = useState(false);
   const [loggingOut, setLoggingOut] = useState(false);
-  useEffect(() => setTeacher(getCurrentTeacher()), []);
+  useEffect(() => {
+    if (!getAccessToken()) {
+      router.replace("/login");
+      return;
+    }
+    setTeacher(getCurrentTeacher());
+    setAuthChecked(true);
+  }, [router]);
   const fullName = teacher
     ? `${teacher.firstName} ${teacher.lastName}`
     : "EduTrace user";
@@ -42,6 +55,7 @@ export function Workspace({ children, title, subtitle, action }) {
       router.push("/login");
     }
   }
+  if (!authChecked) return null;
   return (
     <div className="workspace">
       <aside className="sidebar">
@@ -113,5 +127,18 @@ export function Workspace({ children, title, subtitle, action }) {
 
 export function RiskBadge({ children }) {
   const cls = String(children).toLowerCase();
-  return <span className={`badge badge-${cls}`}>{children}</span>;
+  return (
+    <span className={`badge badge-${cls}`}>{riskTierLabel(children)}</span>
+  );
+}
+
+export function riskTierLabel(tier) {
+  return (
+    {
+      LOW: "No immediate concern",
+      WATCH: "Worth monitoring",
+      ELEVATED: "Needs support",
+      HIGH: "Urgent support",
+    }[String(tier).toUpperCase()] || String(tier)
+  );
 }

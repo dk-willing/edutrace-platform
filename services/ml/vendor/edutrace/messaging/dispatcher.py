@@ -37,6 +37,7 @@ Guard rails enforced here rather than trusted to the caller:
 from __future__ import annotations
 
 import logging
+import os
 import re
 from dataclasses import dataclass, field
 from datetime import datetime, timezone
@@ -104,7 +105,8 @@ class DispatchPlan:
 
 @dataclass(slots=True)
 class DispatcherSettings:
-    sender_id: str = "EDUTRACE"
+    sender_id: str = field(default_factory=lambda: os.environ.get(
+        "EDUTRACE_SMS_SENDER_ID", "EDUTRACE"))
     max_messages_per_learner_per_term: int = 3
     #: UEC Code of Conduct restricts *promotional* traffic to 08:00-19:00 and
     #: bans Sundays. Attendance alerts to an enrolled guardian are

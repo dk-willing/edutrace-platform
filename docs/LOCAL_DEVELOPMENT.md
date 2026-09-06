@@ -89,7 +89,8 @@ Push-Location apps/web; npm run dev; Pop-Location
 For the separate-process API, make sure `.env` contains `PORT=5000` or uses
 the default, plus a reachable `DATABASE_URL`, `REDIS_URL`,
 `ML_SERVICE_URL=http://localhost:8000`, and the same `ML_SERVICE_SHARED_SECRET`
-used by the ML terminal.
+used by the ML terminal. Set `ML_SERVICE_API_KEY` to the same value as
+`EDUTRACE_API_KEY` when using a non-default ML API key.
 
 The standalone web client defaults to `http://localhost:5000`, matching the
 local API default. Docker overrides this with `NEXT_PUBLIC_API_URL` and uses

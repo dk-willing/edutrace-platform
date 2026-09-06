@@ -93,6 +93,9 @@ export default function LoginPage() {
             </button>
           </form>
           <p className="form-foot">
+            <Link href="/forgot-password">Forgot your password?</Link>
+          </p>
+          <p className="form-foot">
             Need an account? <Link href="/register">Register as a teacher</Link>
           </p>
           <p className="form-foot">

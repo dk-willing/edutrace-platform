@@ -232,4 +232,64 @@ export async function revokeRefreshToken(prisma, rawRefreshToken) {
   });
 }
 
+export async function requestPasswordReset(prisma, email) {
+  const teacher = await prisma.teacher.findUnique({
+    where: { email: email.trim().toLowerCase() },
+  });
+  if (!teacher) return { resetToken: null, email: null };
+  const resetToken = crypto.randomBytes(32).toString("hex");
+  await prisma.passwordResetToken.create({
+    data: {
+      teacherId: teacher.id,
+      tokenHash: hashToken(resetToken),
+      expiresAt: new Date(Date.now() + 30 * 60 * 1000),
+    },
+  });
+  return { resetToken, email: teacher.email };
+}
+
+export async function resetPassword(prisma, token, password) {
+  const record = await prisma.passwordResetToken.findUnique({
+    where: { tokenHash: hashToken(token) },
+  });
+  if (!record || record.usedAt || record.expiresAt <= new Date())
+    throw new ValidationError(
+      "This password reset link is invalid or expired.",
+    );
+  const passwordHash = await argon2.hash(password);
+  await prisma.$transaction(async (tx) => {
+    await tx.teacher.update({
+      where: { id: record.teacherId },
+      data: { passwordHash, failedLoginCount: 0, lockedUntil: null },
+    });
+    await tx.passwordResetToken.update({
+      where: { id: record.id },
+      data: { usedAt: new Date() },
+    });
+    await tx.refreshToken.updateMany({
+      where: { teacherId: record.teacherId, revokedAt: null },
+      data: { revokedAt: new Date() },
+    });
+  });
+}
+
+export async function changePassword(
+  prisma,
+  teacherId,
+  currentPassword,
+  nextPassword,
+) {
+  const teacher = await prisma.teacher.findUnique({ where: { id: teacherId } });
+  if (!teacher || !(await argon2.verify(teacher.passwordHash, currentPassword)))
+    throw new UnauthorizedError("The current password is incorrect.");
+  const passwordHash = await argon2.hash(nextPassword);
+  await prisma.$transaction([
+    prisma.teacher.update({ where: { id: teacherId }, data: { passwordHash } }),
+    prisma.refreshToken.updateMany({
+      where: { teacherId, revokedAt: null },
+      data: { revokedAt: new Date() },
+    }),
+  ]);
+}
+
 export { publicTeacher };

@@ -4,9 +4,56 @@ import { prisma } from "../../db/prisma.js";
 import { ForbiddenError } from "../../middleware/errorHandler.js";
 import { asyncHandler } from "../../utils/asyncHandler.js";
 import { requireAuth } from "../auth/auth.middleware.js";
+import { reportPdf } from "./analysis-report.service.js";
 
 const router = Router();
 router.use(requireAuth);
+
+router.get(
+  "/analysis",
+  asyncHandler(async (req, res) => {
+    if (!req.auth.schoolId)
+      throw new ForbiddenError("Your account is not linked to a school.");
+    const reports = await prisma.analysisReport.findMany({
+      where: { schoolId: req.auth.schoolId },
+      orderBy: { createdAt: "desc" },
+      take: 100,
+      select: {
+        id: true,
+        source: true,
+        filename: true,
+        modelVersion: true,
+        totalRows: true,
+        rowsScored: true,
+        highCount: true,
+        tierCounts: true,
+        createdAt: true,
+      },
+    });
+    res.json({ success: true, reports });
+  }),
+);
+
+router.get(
+  "/analysis/:reportId/download",
+  asyncHandler(async (req, res) => {
+    if (!req.auth.schoolId)
+      throw new ForbiddenError("Your account is not linked to a school.");
+    const report = await prisma.analysisReport.findFirst({
+      where: { id: req.params.reportId, schoolId: req.auth.schoolId },
+    });
+    if (!report)
+      return res.status(404).json({
+        success: false,
+        error: { code: "NOT_FOUND", message: "Report not found." },
+      });
+    res.set({
+      "Content-Type": "application/pdf",
+      "Content-Disposition": `attachment; filename="edutrace-report-${report.id}.pdf"`,
+    });
+    res.send(reportPdf(report));
+  }),
+);
 
 router.get(
   "/school",
@@ -53,15 +100,36 @@ router.get(
           },
         }),
       ]);
-    const activeModel = assessments
-      ? await prisma.riskAssessment.findFirst({
-          where: { schoolId: req.auth.schoolId, ...scope },
-          orderBy: { scoredAt: "desc" },
-          select: {
-            modelRegistration: { select: { modelVersion: true, status: true } },
-          },
-        })
-      : null;
+    const activeModel =
+      assessments > 0
+        ? await prisma.riskAssessment.findFirst({
+            where: { schoolId: req.auth.schoolId, ...scope },
+            orderBy: { scoredAt: "desc" },
+            select: {
+              modelRegistration: {
+                select: { modelVersion: true, status: true },
+              },
+            },
+          })
+        : null;
+    const [analysisReportCount, latestAnalysis] = await prisma.$transaction([
+      prisma.analysisReport.count({ where: { schoolId: req.auth.schoolId } }),
+      prisma.analysisReport.findFirst({
+        where: { schoolId: req.auth.schoolId },
+        orderBy: { createdAt: "desc" },
+        select: {
+          id: true,
+          source: true,
+          filename: true,
+          modelVersion: true,
+          totalRows: true,
+          rowsScored: true,
+          highCount: true,
+          tierCounts: true,
+          createdAt: true,
+        },
+      }),
+    ]);
     res.json({
       success: true,
       report: {
@@ -70,6 +138,8 @@ router.get(
         students,
         observations,
         assessments,
+        analysisReportCount,
+        latestAnalysis,
         model: activeModel?.modelRegistration || null,
         riskDistribution: Object.fromEntries(
           tiers.map((tier) => [tier.tier, tier._count._all]),

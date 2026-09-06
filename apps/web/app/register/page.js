@@ -104,6 +104,17 @@ export default function RegisterPage() {
               />
             </div>
             <div className="field">
+              <label htmlFor="phone">Mobile number</label>
+              <input
+                id="phone"
+                name="phone"
+                required
+                type="tel"
+                placeholder="024 000 0000"
+                autoComplete="tel"
+              />
+            </div>
+            <div className="field">
               <label htmlFor="password">Create password</label>
               <input
                 id="password"
@@ -112,6 +123,18 @@ export default function RegisterPage() {
                 required
                 type="password"
                 placeholder="At least 12 characters"
+              />
+            </div>
+            <div className="field">
+              <label htmlFor="password-confirmation">Confirm password</label>
+              <input
+                id="password-confirmation"
+                name="passwordConfirmation"
+                minLength={12}
+                required
+                type="password"
+                placeholder="Repeat your password"
+                autoComplete="new-password"
               />
             </div>
             <button

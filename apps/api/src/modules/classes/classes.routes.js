@@ -10,6 +10,7 @@ import {
 } from "../../middleware/errorHandler.js";
 import { requireAuth } from "../auth/auth.middleware.js";
 import { asyncHandler } from "../../utils/asyncHandler.js";
+import { scoreClass } from "./predictions.service.js";
 
 const router = Router();
 const classSchema = z.object({
@@ -162,6 +163,52 @@ router.post(
       },
     });
     res.status(201).json({ success: true, student });
+  }),
+);
+
+router.get(
+  "/:classId/predictions",
+  asyncHandler(async (req, res) => {
+    const classRecord = await getClassForSchool(
+      req.params.classId,
+      req.auth.schoolId,
+    );
+    if (!canManageClass(req.auth, classRecord))
+      throw new ForbiddenError("You cannot access this class.");
+    const assessments = await prisma.riskAssessment.findMany({
+      where: {
+        schoolId: req.auth.schoolId,
+        student: { classId: classRecord.id },
+      },
+      include: {
+        student: { include: { identity: true } },
+        modelRegistration: { select: { modelVersion: true } },
+      },
+      orderBy: { risk: "desc" },
+    });
+    res.json({ success: true, class: classRecord, assessments });
+  }),
+);
+
+router.post(
+  "/:classId/predictions/retry",
+  asyncHandler(async (req, res) => {
+    const classRecord = await getClassForSchool(
+      req.params.classId,
+      req.auth.schoolId,
+    );
+    if (!canManageClass(req.auth, classRecord))
+      throw new ForbiddenError("You cannot manage this class.");
+    const result = await scoreClass(
+      classRecord.id,
+      req.auth.schoolId,
+      req.auth.teacherId,
+      {
+        phone: req.auth.teacher?.phone,
+        schoolName: req.auth.teacher?.school?.name,
+      },
+    );
+    res.json({ success: true, ...result });
   }),
 );
 

@@ -24,26 +24,79 @@ Run with:
 """
 
 from __future__ import annotations
+from .service_auth import ServiceAuthMiddleware
+from edutrace.train.model import ModelBundle
+from edutrace.serve.app import RT, app, require_key  # the vendored FastAPI app
 
 import json
 import logging
+import os
 from pathlib import Path
 from typing import Any
 
+from dotenv import load_dotenv
 from fastapi import Depends, HTTPException
+from pydantic import BaseModel, Field
 
-from edutrace.serve.app import RT, app, require_key  # the vendored FastAPI app
-from edutrace.train.model import ModelBundle
+# Load local configuration before importing modules that initialize auth/model
+# state. Production deployments should provide environment variables directly.
+service_root = Path(__file__).resolve().parents[1]
+load_dotenv(service_root.parents[1] / ".env")
+if not os.environ.get("EDUTRACE_MODEL_DIR") or os.environ["EDUTRACE_MODEL_DIR"] == "artifacts/model":
+    os.environ["EDUTRACE_MODEL_DIR"] = str(
+        service_root / "vendor" / "artifacts" / "model")
 
-from .service_auth import ServiceAuthMiddleware
 
 log = logging.getLogger("edutrace.ml_wrapper")
 
 app.add_middleware(ServiceAuthMiddleware)
 
+
+class StaffAlertRequest(BaseModel):
+    teacher_msisdn: str = Field(min_length=7, max_length=20)
+    school_name: str = Field(min_length=1, max_length=120)
+    urgent_count: int = Field(ge=1, le=10000)
+
+
+@app.post("/internal/v1/notify/staff")
+async def notify_staff(req: StaffAlertRequest, _: None = Depends(require_key)):
+    if RT.dispatcher is None:
+        raise HTTPException(
+            status_code=503, detail="SMS provider is unavailable")
+    if RT.dispatcher.provider.name != "arkesel":
+        raise HTTPException(
+            status_code=503,
+            detail="Arkesel is not configured as the teacher SMS provider",
+        )
+    text = (
+        f"EduTrace: {req.urgent_count} learner(s) at {req.school_name} "
+        "need urgent support. Please open the review list today."
+    )
+    provider = RT.dispatcher.provider
+    result = provider.send(
+        to=provider.normalise_msisdn(req.teacher_msisdn),
+        text=text,
+        sender_id=RT.dispatcher.settings.sender_id,
+    )
+    if RT.audit:
+        RT.audit.append(
+            "notification.staff_urgent_support",
+            school_id=req.school_name,
+            urgent_count=req.urgent_count,
+            provider=provider.name,
+            accepted=result.accepted,
+            message_id=result.message_id,
+        )
+    return {
+        "accepted": result.accepted,
+        "provider": provider.name,
+        "message_id": result.message_id,
+    }
+
 # Directories this deployment knows about, for registry discovery only.
 # EDUTRACE_MODEL_DIR (the one actually loaded for scoring) is always included.
-_CANDIDATE_ARTIFACT_DIRS = [Path("vendor/artifacts/model"), Path("vendor/artifacts/oulad")]
+_CANDIDATE_ARTIFACT_DIRS = [
+    Path("vendor/artifacts/model"), Path("vendor/artifacts/oulad")]
 KNOWN_ARTIFACT_DIRS = [p for p in _CANDIDATE_ARTIFACT_DIRS if p.exists()]
 
 
@@ -74,7 +127,8 @@ def _read_card(directory: Path) -> dict[str, Any] | None:
 async def active_model(_: None = Depends(require_key)) -> dict[str, Any]:
     """The model currently loaded and actively scoring in this process."""
     if RT.bundle is None:
-        raise HTTPException(status_code=503, detail="no model currently loaded")
+        raise HTTPException(
+            status_code=503, detail="no model currently loaded")
     from dataclasses import asdict
 
     return {"active": True, "card": asdict(RT.bundle.card)}
@@ -108,7 +162,8 @@ async def get_model(version: str, _: None = Depends(require_key)) -> dict[str, A
             return {"card": card, "currently_active": (
                 RT.bundle is not None and RT.bundle.card.version == version
             )}
-    raise HTTPException(status_code=404, detail=f"no known model artifact with version {version}")
+    raise HTTPException(
+        status_code=404, detail=f"no known model artifact with version {version}")
 
 
 __all__ = ["app"]

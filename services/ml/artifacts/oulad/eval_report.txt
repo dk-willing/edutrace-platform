@@ -1,0 +1,56 @@
+  n = 250,484   positives = 13,927   base rate = 5.5600%
+  ROC-AUC 0.7262 | PR-AUC 0.1474 | Brier 0.049961 | ECE 0.00565
+
+      capacity        precision   recall    lift
+      top 0.5%           0.3634   0.0327    6.54x
+      top 1%             0.3047   0.0548    5.48x
+      top 2%             0.2456   0.0883    4.42x
+      top 5%             0.1924   0.1730    3.46x
+
+      calibration (equal-count deciles, predicted -> observed)
+          0.0110 ->   0.0062  (n=25,049)  ##
+          0.0132 ->   0.0151  (n=25,049)  ######
+          0.0190 ->   0.0214  (n=25,049)  ########
+          0.0266 ->   0.0321  (n=25,049)  ############
+          0.0380 ->   0.0374  (n=25,048)  ##############
+          0.0497 ->   0.0435  (n=25,048)  #################
+          0.0703 ->   0.0672  (n=25,048)  ##########################
+          0.0862 ->   0.0846  (n=25,048)  #################################
+          0.1139 ->   0.0865  (n=25,048)  ##################################
+          0.1590 ->   0.1620  (n=25,048)  ########################################
+
+  fairness by sex   FPR spread 0.0018 (<= 0.05) | recall spread 0.0107 (<= 0.15) | worst calib gap 0.0076 (<= 0.02)   [PASS]
+      group                    n    pos   flag   recall    prec     FPR  calib gap
+      F                  105,533  5,505    900    0.048   0.296  0.0063    +0.0076
+      M                  144,951  8,422  1,604    0.059   0.310  0.0081    -0.0002
+
+  fairness by poverty_quintile   FPR spread 0.0045 (<= 0.05) | recall spread 0.0152 (<= 0.15) | worst calib gap 0.0071 (<= 0.02)   [PASS]
+      group                    n    pos   flag   recall    prec     FPR  calib gap
+      1.0                 46,361  3,006    595    0.061   0.308  0.0095    -0.0005
+      2.0                 52,823  3,272    630    0.061   0.319  0.0087    -0.0009
+      3.0                 50,036  2,750    461    0.046   0.275  0.0071    +0.0043
+      4.0                 48,350  2,383    449    0.052   0.274  0.0071    +0.0071
+      5.0                 42,687  2,057    319    0.056   0.361  0.0050    +0.0062
+
+  fairness by region   FPR spread 0.0046 (<= 0.05) | recall spread 0.0556 (<= 0.15) | worst calib gap 0.0150 (<= 0.02)   [PASS]
+      group                    n    pos   flag   recall    prec     FPR  calib gap
+      East Anglian Region  23,255  1,169    171    0.033   0.222  0.0060    +0.0056
+      East Midlands Region  17,083    999    177    0.065   0.367  0.0070    -0.0033
+      Ireland             11,507    574     76    0.038   0.289  0.0049    +0.0061
+      London Region       22,239  1,274    250    0.062   0.316  0.0082    +0.0037
+      North Region        14,251    865    132    0.052   0.341  0.0065    -0.0064
+      North Western Region  20,108  1,241    213    0.048   0.282  0.0081    +0.0005
+      Scotland            35,168  1,952    353    0.050   0.275  0.0077    +0.0038
+      South East Region   16,048    915    145    0.048   0.303  0.0067    +0.0018
+      South Region        22,911  1,312    216    0.074   0.449  0.0055    +0.0005
+      South West Region   18,328  1,021    183    0.036   0.202  0.0084    +0.0011
+      Wales               18,129    885    240    0.088   0.325  0.0094    +0.0150
+      West Midlands Region  17,367  1,023    172    0.052   0.308  0.0073    +0.0007
+      Yorkshire Region    14,090    697    176    0.069   0.273  0.0096    +0.0109
+
+  fairness by disability   FPR spread 0.0018 (<= 0.05) | recall spread 0.0024 (<= 0.15) | worst calib gap 0.0143 (<= 0.02)   [PASS]
+      group                    n    pos   flag   recall    prec     FPR  calib gap
+      N                  228,199 12,150  2,218    0.054   0.298  0.0072    +0.0048
+      Y                   22,285  1,777    286    0.057   0.353  0.0090    -0.0143
+
+  note: Probabilities are calibrated on a separate academic year.

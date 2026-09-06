@@ -1,0 +1,44 @@
+  n = 29,342   positives = 399   base rate = 1.3598%
+  ROC-AUC 0.8268 | PR-AUC 0.2306 | Brier 0.011569 | ECE 0.00283
+
+      capacity        precision   recall    lift
+      top 0.5%           0.4795   0.1754   35.26x
+      top 1%             0.3823   0.2807   28.11x
+      top 2%             0.2338   0.3434   17.19x
+      top 5%             0.1247   0.4586    9.17x
+
+      calibration (equal-count deciles, predicted -> observed)
+          0.0000 ->   0.0000  (n= 2,935)  
+          0.0020 ->   0.0024  (n= 2,935)  
+          0.0027 ->   0.0041  (n= 2,934)  #
+          0.0037 ->   0.0058  (n= 2,934)  ##
+          0.0039 ->   0.0061  (n= 2,934)  ##
+          0.0043 ->   0.0068  (n= 2,934)  ##
+          0.0072 ->   0.0065  (n= 2,934)  ##
+          0.0094 ->   0.0099  (n= 2,934)  ###
+          0.0105 ->   0.0133  (n= 2,934)  #####
+          0.0656 ->   0.0811  (n= 2,934)  ################################
+
+  fairness by sex   FPR spread 0.0045 (<= 0.05) | recall spread 0.2420 (<= 0.15) | worst calib gap 0.0047 (<= 0.02)   [FAIL]
+      group                    n    pos   flag   recall    prec     FPR  calib gap
+      F                   14,832    200     91    0.160   0.352  0.0040    -0.0047
+      M                   14,510    199    202    0.402   0.396  0.0085    -0.0006
+
+  fairness by poverty_quintile   FPR spread 0.0250 (<= 0.05) | recall spread 0.4096 (advisory: base rates differ 25x) | worst calib gap 0.0076 (<= 0.02)   [PASS]
+      group                    n    pos   flag   recall    prec     FPR  calib gap
+      1                    5,594    188    212    0.410   0.363  0.0250    -0.0069
+      2                    6,131    128     57    0.180   0.404  0.0057    -0.0076
+      3                    5,488     59     24    0.203   0.500  0.0022    -0.0035
+      4                    6,113     16      0    0.000     nan  0.0000    +0.0023
+      5                    6,016      8      0    0.000     nan  0.0000    +0.0020
+
+  fairness by region   FPR spread 0.0135 (<= 0.05) | recall spread 0.3143 (advisory: base rates differ 3x) | worst calib gap 0.0070 (<= 0.02)   [PASS]
+      group                    n    pos   flag   recall    prec     FPR  calib gap
+      Ashanti              1,494     11      0    0.000     nan  0.0000    -0.0013
+      Central              7,316     70     41    0.314   0.537  0.0026    -0.0011
+      Greater Accra        1,470      0     10      nan   0.000  0.0068    +0.0065
+      Northern             4,530     32     30    0.312   0.333  0.0044    +0.0040
+      Savannah             8,634    198    176    0.313   0.352  0.0135    -0.0070
+      Volta                5,898     88     36    0.205   0.500  0.0031    -0.0061
+
+  note: Probabilities are calibrated on a separate academic year.

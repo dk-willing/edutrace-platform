@@ -16,6 +16,8 @@ import { studentsRouter } from "./modules/students/students.routes.js";
 import { dashboardRouter } from "./modules/dashboard/dashboard.routes.js";
 import { importsRouter } from "./modules/imports/imports.routes.js";
 import { reportsRouter } from "./modules/reports/reports.routes.js";
+import { predictionsRouter } from "./modules/predictions/predictions.routes.js";
+import { notificationsRouter } from "./modules/notifications/notifications.routes.js";
 
 export function createApp() {
   const app = express();
@@ -70,6 +72,8 @@ export function createApp() {
   app.use("/api/v1/dashboard", dashboardRouter);
   app.use("/api/v1/imports", importsRouter);
   app.use("/api/v1/reports", reportsRouter);
+  app.use("/api/v1/predictions", predictionsRouter);
+  app.use("/api/v1/notifications", notificationsRouter);
 
   // Feature routers are mounted here as each phase lands:
   //   app.use('/api/v1/auth', authRouter);            // Phase 3

@@ -63,6 +63,12 @@ export async function apiRequest(path, options = {}) {
     );
   }
   const payload = await response.json().catch(() => ({}));
+  if (response.status === 401 && typeof window !== "undefined") {
+    clearAccessToken();
+    if (window.location.pathname !== "/login") {
+      window.location.replace("/login");
+    }
+  }
   if (!response.ok) {
     const details = Array.isArray(payload.error?.details)
       ? payload.error.details
@@ -81,4 +87,22 @@ export async function apiRequest(path, options = {}) {
     throw error;
   }
   return payload;
+}
+
+export function apiUrl(path) {
+  return `${apiBase}${path}`;
+}
+
+export async function downloadFile(path, filename) {
+  const response = await fetch(`${apiBase}${path}`, {
+    credentials: "include",
+    headers: { Authorization: `Bearer ${getAccessToken()}` },
+  });
+  if (!response.ok) throw new Error("The file could not be downloaded.");
+  const blob = await response.blob();
+  const link = document.createElement("a");
+  link.href = URL.createObjectURL(blob);
+  link.download = filename;
+  link.click();
+  URL.revokeObjectURL(link.href);
 }

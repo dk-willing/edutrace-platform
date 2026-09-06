@@ -91,3 +91,17 @@ sample rows.
 
 See `docs/PHASE_PLAN.md`. This commit delivers **Phase 1 (repo/architecture)**
 and **Phase 2 (database schema)**.
+
+## Create New School
+
+npm run create:school --workspace=@edutrace/api -- \
+ --name="ABC Junior High" \
+ --code=ABC-JHS \
+ --district=Accra \
+ --region=Greater-Accra \
+ --admin-email=admin@example.com \
+ --admin-password="change-this-password"
+
+# TEST
+
+School ID: cmtp06rsf0001i98ua86qmop2

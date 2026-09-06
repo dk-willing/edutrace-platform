@@ -123,7 +123,13 @@ router.post(
         id: updated.id,
         email: updated.email,
         status: updated.status,
-        school: updated.school,
+        school: updated.school
+          ? {
+              id: updated.school.id,
+              name: updated.school.name,
+              schoolCode: updated.school.schoolCode,
+            }
+          : null,
       },
     });
   }),

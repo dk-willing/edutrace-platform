@@ -41,10 +41,18 @@ class ArkeselProvider(SmsProvider):
     def send(self, to: str, text: str, sender_id: str) -> DeliveryResult:
         import httpx
 
+        recipient = self.normalise_msisdn(to)
+        if len(recipient) != 12 or not recipient.startswith("233"):
+            return DeliveryResult(
+                accepted=False,
+                message_id=None,
+                provider=self.name,
+                error="recipient must be a valid Ghana mobile number",
+            )
         payload = {
             "sender": sender_id,
             "message": text,
-            "recipients": [self.normalise_msisdn(to)],
+            "recipients": [recipient],
         }
         try:
             with httpx.Client(timeout=self.timeout) as client:
@@ -58,7 +66,8 @@ class ArkeselProvider(SmsProvider):
                 accepted=False, message_id=None, provider=self.name, error=str(exc)
             )
 
-        data = (body.get("data") or [{}])[0] if isinstance(body.get("data"), list) else {}
+        data = (body.get("data") or [{}])[0] if isinstance(
+            body.get("data"), list) else {}
         return DeliveryResult(
             accepted=str(body.get("status", "")).lower() in {"success", "ok"},
             message_id=data.get("id"),

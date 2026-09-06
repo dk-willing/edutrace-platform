@@ -36,6 +36,7 @@ import os
 import time
 from contextlib import asynccontextmanager
 from dataclasses import dataclass, field
+from pathlib import Path
 from typing import Any
 
 import pandas as pd
@@ -55,7 +56,10 @@ from .scorer import Scorer
 
 log = logging.getLogger("edutrace.serve")
 
-MODEL_DIR = os.environ.get("EDUTRACE_MODEL_DIR", "artifacts/model")
+MODEL_DIR = os.environ.get(
+    "EDUTRACE_MODEL_DIR",
+    str(Path(__file__).resolve().parents[2] / "artifacts" / "model"),
+)
 AUDIT_PATH = os.environ.get("EDUTRACE_AUDIT_PATH", "artifacts/audit.jsonl")
 API_KEY = os.environ.get("EDUTRACE_API_KEY")
 SMS_PROVIDER = os.environ.get("EDUTRACE_SMS_PROVIDER", "console")
@@ -123,7 +127,8 @@ app = FastAPI(
 
 async def require_key(x_api_key: str | None = Header(default=None)) -> None:
     if API_KEY and x_api_key != API_KEY:
-        raise HTTPException(status_code=401, detail="invalid or missing X-API-Key")
+        raise HTTPException(
+            status_code=401, detail="invalid or missing X-API-Key")
 
 
 def _scorer() -> Scorer:
@@ -248,7 +253,8 @@ async def score_batch(
     try:
         df = pd.read_csv(io.BytesIO(raw))
     except Exception as exc:  # noqa: BLE001
-        raise HTTPException(status_code=400, detail=f"could not parse CSV: {exc}")
+        raise HTTPException(
+            status_code=400, detail=f"could not parse CSV: {exc}")
     if df.empty:
         raise HTTPException(status_code=400, detail="CSV contained no rows")
 

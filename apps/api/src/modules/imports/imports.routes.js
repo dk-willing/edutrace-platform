@@ -1,3 +1,4 @@
+import crypto from "node:crypto";
 import { Router } from "express";
 import multer from "multer";
 import Papa from "papaparse";
@@ -5,43 +6,260 @@ import { z } from "zod";
 
 import { prisma } from "../../db/prisma.js";
 import {
+  ConflictError,
   ForbiddenError,
   NotFoundError,
   ValidationError,
 } from "../../middleware/errorHandler.js";
 import { asyncHandler } from "../../utils/asyncHandler.js";
 import { requireAuth } from "../auth/auth.middleware.js";
+import { scoreClass } from "../classes/predictions.service.js";
 
 const router = Router();
 const upload = multer({
   storage: multer.memoryStorage(),
   limits: { fileSize: 10 * 1024 * 1024, files: 1 },
 });
+const headers = [
+  "studentName",
+  "gradeLevel",
+  "externalId",
+  "guardianName",
+  "guardianMsisdn",
+  "attendanceRateTermToDate",
+  "attendanceRateLast4w",
+  "avgExamScore",
+  "assessmentCompletionRate",
+  "coreSubjectFailures",
+  "feeStatus",
+  "hasTextbooks",
+  "hasUniform",
+  "doesPaidOrFarmWork",
+  "distanceBand",
+];
 const requiredHeaders = ["studentName", "gradeLevel"];
-const allowedGrades = new Set(["JHS1", "JHS2", "JHS3"]);
+const headerAliases = {
+  student_name: "studentName",
+  student_external_id: "externalId",
+  grade_level: "gradeLevel",
+  guardian_name: "guardianName",
+  guardian_msisdn: "guardianMsisdn",
+  attendance_rate_term_to_date: "attendanceRateTermToDate",
+  attendance_rate_last_4w: "attendanceRateLast4w",
+  avg_exam_score: "avgExamScore",
+  assessment_completion_rate: "assessmentCompletionRate",
+  core_subject_failures: "coreSubjectFailures",
+  fee_status: "feeStatus",
+  has_textbooks: "hasTextbooks",
+  has_uniform: "hasUniform",
+  does_paid_or_farm_work: "doesPaidOrFarmWork",
+  distance_band: "distanceBand",
+};
+const grades = new Set(["JHS1", "JHS2", "JHS3"]);
+const numericFields = new Set([
+  "attendanceRateTermToDate",
+  "attendanceRateLast4w",
+  "avgExamScore",
+  "assessmentCompletionRate",
+]);
+const booleanFields = new Set([
+  "hasTextbooks",
+  "hasUniform",
+  "doesPaidOrFarmWork",
+]);
 
-function number(value, field, row, { min = -Infinity, max = Infinity } = {}) {
-  if (value === undefined || value === "") return null;
-  const parsed = Number(value);
-  if (!Number.isFinite(parsed) || parsed < min || parsed > max)
-    throw new Error(
-      `Row ${row}: ${field} must be a number between ${min} and ${max}.`,
-    );
+function value(row, field) {
+  const raw = row[field];
+  return raw === undefined || raw === null || String(raw).trim() === ""
+    ? null
+    : String(raw).trim();
+}
+function parseBoolean(raw, field, row) {
+  if (raw === null) return null;
+  if (["true", "TRUE", "1", "yes", "YES"].includes(raw)) return true;
+  if (["false", "FALSE", "0", "no", "NO"].includes(raw)) return false;
+  throw { field, row, message: "Expected true or false." };
+}
+function parseNumber(raw, field, row, range, integer = false) {
+  if (raw === null) return null;
+  const parsed = Number(raw);
+  if (
+    !Number.isFinite(parsed) ||
+    (integer && !Number.isInteger(parsed)) ||
+    parsed < range[0] ||
+    parsed > range[1]
+  )
+    throw {
+      field,
+      row,
+      message: `Expected a ${integer ? "whole number" : "number"} from ${range[0]} to ${range[1]}.`,
+    };
   return parsed;
 }
-function rate(value, field, row) {
-  const parsed = number(value, field, row, { min: 0, max: 100 });
-  return parsed === null ? null : parsed <= 1 ? parsed * 100 : parsed;
+function parseRate(raw, field, row) {
+  const parsed = parseNumber(raw, field, row, [0, 100]);
+  return parsed !== null && parsed <= 1 ? parsed * 100 : parsed;
 }
-function bool(value, field, row) {
-  if (value === undefined || value === "") return null;
-  if (["true", "1", "yes"].includes(String(value).toLowerCase())) return true;
-  if (["false", "0", "no"].includes(String(value).toLowerCase())) return false;
-  throw new Error(`Row ${row}: ${field} must be true or false.`);
+function parseRow(row, rowNumber) {
+  const parsed = {};
+  for (const field of headers) parsed[field] = value(row, field);
+  for (const [field, max] of Object.entries({
+    studentName: 120,
+    externalId: 64,
+    guardianName: 120,
+    guardianMsisdn: 20,
+  })) {
+    if (parsed[field] !== null && parsed[field].length > max)
+      throw {
+        field,
+        row: rowNumber,
+        message: `Must be ${max} characters or fewer.`,
+      };
+  }
+  if (!parsed.studentName)
+    throw {
+      field: "studentName",
+      row: rowNumber,
+      message: "Student name is required.",
+    };
+  if (!grades.has(parsed.gradeLevel))
+    throw {
+      field: "gradeLevel",
+      row: rowNumber,
+      message: "Expected JHS1, JHS2, or JHS3.",
+    };
+  for (const field of numericFields)
+    parsed[field] = parseRate(parsed[field], field, rowNumber);
+  if (parsed.coreSubjectFailures !== null)
+    parsed.coreSubjectFailures = parseNumber(
+      parsed.coreSubjectFailures,
+      "coreSubjectFailures",
+      rowNumber,
+      [0, 12],
+      true,
+    );
+  for (const field of booleanFields)
+    parsed[field] = parseBoolean(parsed[field], field, rowNumber);
+  return parsed;
+}
+function parseCsv(buffer) {
+  const result = Papa.parse(buffer.toString("utf8"), {
+    header: true,
+    skipEmptyLines: true,
+    transformHeader: (header) => {
+      const normalized = header.replace(/^\uFEFF/, "").trim();
+      return headerAliases[normalized] || normalized;
+    },
+  });
+  if (result.errors.length)
+    throw new ValidationError(
+      "The CSV could not be parsed.",
+      result.errors.map((error) => ({
+        message: error.message,
+        row: error.row,
+      })),
+    );
+  const actual = result.meta.fields || [];
+  const missing = requiredHeaders.filter((header) => !actual.includes(header));
+  const duplicates = actual.filter(
+    (header, index) => actual.indexOf(header) !== index,
+  );
+  if (missing.length || duplicates.length)
+    throw new ValidationError(
+      "CSV headers do not match the official EduTrace template.",
+      { missing, duplicates, received: actual },
+    );
+  if (!result.data.length)
+    throw new ValidationError("The CSV contains no student rows.");
+  const rows = [];
+  const errors = [];
+  const seen = new Set();
+  for (const [index, row] of result.data.entries()) {
+    const rowNumber = index + 2;
+    try {
+      const parsed = parseRow(row, rowNumber);
+      if (parsed.externalId && seen.has(parsed.externalId))
+        throw {
+          field: "externalId",
+          row: rowNumber,
+          message: "Duplicate external ID in this upload.",
+        };
+      if (parsed.externalId) seen.add(parsed.externalId);
+      rows.push(parsed);
+    } catch (error) {
+      errors.push(
+        error.field
+          ? error
+          : { field: "row", row: rowNumber, message: "Malformed row." },
+      );
+    }
+  }
+  return { rows, errors, totalRows: result.data.length };
+}
+async function getClass(req, classId) {
+  if (!req.auth.schoolId)
+    throw new ForbiddenError("Your account is not linked to a school.");
+  const classRecord = await prisma.class.findFirst({
+    where: {
+      id: classId,
+      schoolId: req.auth.schoolId,
+      ...(req.auth.role === "TEACHER" ? { ownerId: req.auth.teacherId } : {}),
+    },
+  });
+  if (!classRecord)
+    throw new NotFoundError(
+      "That class was not found or is not assigned to you.",
+    );
+  return classRecord;
 }
 
 router.use(requireAuth);
-
+router.get("/template", (_req, res) => {
+  const examples = [
+    [
+      "Amina Mensah",
+      "JHS2",
+      "DEMO-001",
+      "Kofi Mensah",
+      "",
+      "88",
+      "82",
+      "92",
+      "0",
+      "PAID_IN_FULL",
+      "true",
+      "true",
+      "false",
+      "M15_TO_30",
+    ],
+    [
+      "Kojo Owusu",
+      "JHS2",
+      "DEMO-002",
+      "Adwoa Owusu",
+      "",
+      "64",
+      "52",
+      "67",
+      "2",
+      "PART_PAID",
+      "false",
+      "true",
+      "true",
+      "M30_TO_60",
+    ],
+  ];
+  res
+    .type("text/csv")
+    .send(
+      [
+        headers.join(","),
+        ...examples.map((row) =>
+          row.map((cell) => `"${cell.replaceAll('"', '""')}"`).join(","),
+        ),
+      ].join("\n"),
+    );
+});
 router.get(
   "/",
   asyncHandler(async (req, res) => {
@@ -56,199 +274,160 @@ router.get(
     res.json({ success: true, uploads });
   }),
 );
-
 router.post(
   "/",
   upload.single("file"),
   asyncHandler(async (req, res) => {
-    if (!req.auth.schoolId)
-      throw new ForbiddenError("Your account is not linked to a school.");
-    if (!req.file) throw new ValidationError("Choose a CSV file to upload.");
-    const classId = z.string().min(1).parse(req.body.classId);
-    const classRecord = await prisma.class.findFirst({
-      where: {
-        id: classId,
-        schoolId: req.auth.schoolId,
-        ...(req.auth.role === "TEACHER" ? { ownerId: req.auth.teacherId } : {}),
-      },
-    });
-    if (!classRecord)
-      throw new NotFoundError(
-        "That class was not found or is not assigned to you.",
-      );
-
-    const parsed = Papa.parse(req.file.buffer.toString("utf8"), {
-      header: true,
-      skipEmptyLines: true,
-      transformHeader: (header) => header.trim(),
-    });
-    if (parsed.errors.length)
-      throw new ValidationError("The CSV could not be parsed.", parsed.errors);
-    const headers = parsed.meta.fields || [];
-    const missing = requiredHeaders.filter(
-      (header) => !headers.includes(header),
+    const classRecord = await getClass(
+      req,
+      z.string().min(1).parse(req.body.classId),
     );
-    if (missing.length)
-      throw new ValidationError(
-        `Missing required CSV column${missing.length === 1 ? "" : "s"}: ${missing.join(", ")}.`,
-      );
-
-    const uploadRecord = await prisma.csvUpload.create({
+    if (!req.file) throw new ValidationError("Choose a CSV file to upload.");
+    const parsed = parseCsv(req.file.buffer);
+    const existing = await prisma.student.findMany({
+      where: {
+        schoolId: req.auth.schoolId,
+        externalId: {
+          in: parsed.rows.map((row) => row.externalId).filter(Boolean),
+        },
+        isActive: true,
+      },
+      select: { externalId: true },
+    });
+    for (const item of existing)
+      parsed.errors.push({
+        row: 0,
+        field: "externalId",
+        message: `Student ID ${item.externalId} already exists in this school.`,
+      });
+    const record = await prisma.csvUpload.create({
       data: {
         schoolId: req.auth.schoolId,
         uploadedById: req.auth.teacherId,
-        classId,
+        classId: classRecord.id,
         originalFilename: req.file.originalname,
-        storagePath: `memory://${req.file.originalname}`,
-        status: "VALIDATING",
-        rowsTotal: parsed.data.length,
+        storagePath: "memory://pending",
+        status: "AWAITING_MODEL_APPROVAL",
+        rowsTotal: parsed.totalRows,
+        rowsAccepted: parsed.errors.length ? 0 : parsed.rows.length,
+        rowsRejected: parsed.errors.length,
+        errorSummary: {
+          errors: parsed.errors,
+          rows: parsed.errors.length ? [] : parsed.rows,
+        },
       },
     });
-    const accepted = [];
-    const errors = [];
-    const seenIds = new Set();
-    parsed.data.forEach((row, index) => {
-      const rowNumber = index + 2;
-      try {
-        const studentName = String(row.studentName || "").trim();
-        const gradeLevel = String(row.gradeLevel || "")
-          .trim()
-          .toUpperCase();
-        if (!studentName)
-          throw new Error(`Row ${rowNumber}: studentName is required.`);
-        if (!allowedGrades.has(gradeLevel))
-          throw new Error(
-            `Row ${rowNumber}: gradeLevel must be JHS1, JHS2, or JHS3.`,
-          );
-        const externalId = String(row.externalId || "").trim() || null;
-        if (externalId && seenIds.has(externalId))
-          throw new Error(
-            `Row ${rowNumber}: duplicate externalId ${externalId} in this file.`,
-          );
-        if (externalId) seenIds.add(externalId);
-        accepted.push({ row, studentName, gradeLevel, externalId, rowNumber });
-      } catch (error) {
-        errors.push(error.message);
-      }
+    res.status(201).json({
+      success: true,
+      valid: parsed.errors.length === 0,
+      uploadId: record.id,
+      totalRows: parsed.totalRows,
+      validRows: parsed.errors.length ? 0 : parsed.rows.length,
+      invalidRows: parsed.errors.length,
+      errors: parsed.errors,
+      preview: parsed.errors.length ? [] : parsed.rows.slice(0, 10),
     });
-
-    try {
-      await prisma.$transaction(async (tx) => {
-        for (const item of accepted) {
-          const student = await tx.student.create({
-            data: {
-              schoolId: req.auth.schoolId,
-              classId,
-              studentKey: `${req.auth.schoolId}:${item.externalId || `${uploadRecord.id}:${item.rowNumber}`}`,
-              externalId: item.externalId,
-              gradeLevel: item.gradeLevel,
-              identity: {
-                create: {
-                  studentName: item.studentName,
-                  guardianName: rowValue(item.row, "guardianName"),
-                  guardianMsisdn: rowValue(item.row, "guardianMsisdn"),
-                },
-              },
-            },
-          });
-          await tx.studentObservation.create({
-            data: {
-              schoolId: req.auth.schoolId,
-              studentId: student.id,
-              academicYear: new Date().getFullYear(),
-              term: "T1",
-              week: 1,
-              gradeLevel: item.gradeLevel,
-              attendanceRateTermToDate: rate(
-                item.row.attendanceRateTermToDate,
-                "attendanceRateTermToDate",
-                item.rowNumber,
-              ),
-              attendanceRateLast4w: rate(
-                item.row.attendanceRateLast4w,
-                "attendanceRateLast4w",
-                item.rowNumber,
-              ),
-              avgExamScore: rate(
-                item.row.avgExamScore,
-                "avgExamScore",
-                item.rowNumber,
-              ),
-              assessmentCompletionRate: rate(
-                item.row.assessmentCompletionRate,
-                "assessmentCompletionRate",
-                item.rowNumber,
-              ),
-              coreSubjectFailures: number(
-                item.row.coreSubjectFailures,
-                "coreSubjectFailures",
-                item.rowNumber,
-                { min: 0, max: 12 },
-              ),
-              feeStatus: rowValue(item.row, "feeStatus"),
-              hasTextbooks: bool(
-                item.row.hasTextbooks,
-                "hasTextbooks",
-                item.rowNumber,
-              ),
-              hasUniform: bool(
-                item.row.hasUniform,
-                "hasUniform",
-                item.rowNumber,
-              ),
-              doesPaidOrFarmWork: bool(
-                item.row.doesPaidOrFarmWork,
-                "doesPaidOrFarmWork",
-                item.rowNumber,
-              ),
-              distanceBand: rowValue(item.row, "distanceBand"),
-              weeklyAttendanceHistory: [],
-              sourceUploadId: uploadRecord.id,
-            },
-          });
-        }
-        await tx.csvUpload.update({
-          where: { id: uploadRecord.id },
-          data: {
-            status: "COMPLETED",
-            rowsAccepted: accepted.length,
-            rowsRejected: errors.length,
-            errorSummary: errors.length ? errors : undefined,
-            completedAt: new Date(),
-          },
-        });
-      });
-    } catch (error) {
-      await prisma.csvUpload.update({
-        where: { id: uploadRecord.id },
-        data: {
-          status: "FAILED",
-          rowsAccepted: 0,
-          rowsRejected: parsed.data.length,
-          errorSummary: [error.message],
-        },
-      });
-      throw error;
-    }
-    res
-      .status(201)
-      .json({
-        success: true,
-        upload: {
-          id: uploadRecord.id,
-          filename: req.file.originalname,
-          classId,
-          rowsTotal: parsed.data.length,
-          rowsAccepted: accepted.length,
-          rowsRejected: errors.length,
-          errors,
-        },
-      });
   }),
 );
-
-function rowValue(row, key) {
-  const value = row[key];
-  return value === undefined || value === "" ? null : String(value).trim();
-}
+router.post(
+  "/:uploadId/commit",
+  asyncHandler(async (req, res) => {
+    const record = await prisma.csvUpload.findFirst({
+      where: {
+        id: req.params.uploadId,
+        schoolId: req.auth.schoolId,
+        uploadedById: req.auth.teacherId,
+      },
+      include: { class: true },
+    });
+    if (!record) throw new NotFoundError("Pending import not found.");
+    if (record.status !== "AWAITING_MODEL_APPROVAL")
+      throw new ConflictError(
+        "This import is no longer awaiting confirmation.",
+      );
+    const snapshot = record.errorSummary?.rows;
+    if (!Array.isArray(snapshot) || !snapshot.length)
+      throw new ValidationError("This import has no valid rows to commit.");
+    const studentRows = snapshot.map((row) => ({
+      id: crypto.randomUUID(),
+      schoolId: record.schoolId,
+      classId: record.classId,
+      studentKey: crypto.randomBytes(18).toString("hex"),
+      externalId: row.externalId,
+      gradeLevel: row.gradeLevel,
+    }));
+    const identityRows = studentRows.map((student, index) => {
+      const row = snapshot[index];
+      return {
+        id: crypto.randomUUID(),
+        studentId: student.id,
+        studentName: row.studentName,
+        guardianName: row.guardianName,
+        guardianMsisdn: row.guardianMsisdn,
+      };
+    });
+    const observationRows = studentRows.map((student, index) => {
+      const row = snapshot[index];
+      return {
+        id: crypto.randomUUID(),
+        schoolId: record.schoolId,
+        studentId: student.id,
+        academicYear: new Date().getFullYear(),
+        term: "T1",
+        week: 1,
+        gradeLevel: row.gradeLevel,
+        attendanceRateTermToDate: row.attendanceRateTermToDate,
+        attendanceRateLast4w: row.attendanceRateLast4w,
+        avgExamScore: row.avgExamScore,
+        assessmentCompletionRate: row.assessmentCompletionRate,
+        coreSubjectFailures: row.coreSubjectFailures,
+        feeStatus: row.feeStatus,
+        hasTextbooks: row.hasTextbooks,
+        hasUniform: row.hasUniform,
+        doesPaidOrFarmWork: row.doesPaidOrFarmWork,
+        distanceBand: row.distanceBand,
+        weeklyAttendanceHistory: [],
+        sourceUploadId: record.id,
+      };
+    });
+    await prisma.$transaction([
+      prisma.student.createMany({ data: studentRows }),
+      prisma.studentIdentity.createMany({ data: identityRows }),
+      prisma.studentObservation.createMany({ data: observationRows }),
+      prisma.csvUpload.update({
+        where: { id: record.id },
+        data: {
+          status: "COMPLETED",
+          completedAt: new Date(),
+          errorSummary: { rowCount: studentRows.length },
+        },
+      }),
+      prisma.auditLog.create({
+        data: {
+          schoolId: record.schoolId,
+          actorId: req.auth.teacherId,
+          event: "STUDENT_IMPORT_COMMITTED",
+          payload: { uploadId: record.id, rowCount: studentRows.length },
+        },
+      }),
+    ]);
+    const students = studentRows.map((student) => student.id);
+    const analysis = await scoreClass(
+      record.classId,
+      record.schoolId,
+      req.auth.teacherId,
+      {
+        phone: req.auth.teacher?.phone,
+        schoolName: req.auth.teacher?.school?.name,
+      },
+    );
+    res.status(201).json({
+      success: true,
+      classId: record.classId,
+      studentIds: students,
+      predictionStatus: analysis.status,
+      analysis,
+    });
+  }),
+);
 export { router as importsRouter };

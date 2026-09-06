@@ -31,12 +31,24 @@ router.get(
     };
     const [
       studentCount,
+      observationCount,
+      analysisReportCount,
       riskGroups,
       reviewCount,
       interventionCount,
       recentAssessments,
+      latestReport,
     ] = await prisma.$transaction([
       prisma.student.count({ where: studentWhere }),
+      prisma.studentObservation.count({
+        where: {
+          schoolId: req.auth.schoolId,
+          ...(classIds.length
+            ? { student: { classId: { in: classIds } } }
+            : { id: "__no_observations__" }),
+        },
+      }),
+      prisma.analysisReport.count({ where: { schoolId: req.auth.schoolId } }),
       prisma.riskAssessment.groupBy({
         by: ["tier"],
         where: {
@@ -80,6 +92,21 @@ router.get(
           modelRegistration: { select: { modelVersion: true } },
         },
       }),
+      prisma.analysisReport.findFirst({
+        where: { schoolId: req.auth.schoolId },
+        orderBy: { createdAt: "desc" },
+        select: {
+          id: true,
+          source: true,
+          filename: true,
+          modelVersion: true,
+          totalRows: true,
+          rowsScored: true,
+          highCount: true,
+          tierCounts: true,
+          createdAt: true,
+        },
+      }),
     ]);
     const riskDistribution = Object.fromEntries(
       riskGroups.map((group) => [group.tier, group._count._all]),
@@ -89,12 +116,15 @@ router.get(
       classes,
       stats: {
         studentCount,
+        observationCount,
+        analysisReportCount,
         classCount: classes.length,
         awaitingReview: reviewCount,
         openInterventions: interventionCount,
         riskDistribution,
       },
       recentAssessments,
+      latestReport,
     });
   }),
 );

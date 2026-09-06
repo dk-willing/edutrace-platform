@@ -228,10 +228,6 @@ export default function AdminPage() {
                 {authBusy ? "Checking account..." : "Sign in to admin"}
               </button>
             </form>
-            <p className="form-foot">
-              The initial account is created with{" "}
-              <code>npm run create:school</code>.
-            </p>
           </div>
         </div>
       </div>
