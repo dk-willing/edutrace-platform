@@ -17,7 +17,10 @@ import { requireAuth } from "./auth.middleware.js";
 import { asyncHandler } from "../../utils/asyncHandler.js";
 import { env } from "../../config/env.js";
 import { logger } from "../../utils/logger.js";
-import { sendPasswordResetEmail } from "./mail.service.js";
+import {
+  sendPasswordResetEmail,
+  sendVerificationEmail,
+} from "./mail.service.js";
 
 const router = Router();
 const credentials = z.object({
@@ -62,6 +65,12 @@ router.post(
       console.log(
         `\n[EduTrace] Verification link for ${result.teacher.email}:\n${verificationUrl}\n`,
       );
+    }
+    if (env.NODE_ENV === "production") {
+      await sendVerificationEmail({
+        email: result.teacher.email,
+        verificationUrl: `${env.FRONTEND_URL}/verify-email?token=${encodeURIComponent(result.verificationToken)}`,
+      });
     }
     logger.info({ email: result.teacher.email }, "teacher account created");
     res.status(201).json({

@@ -92,6 +92,12 @@ the default, plus a reachable `DATABASE_URL`, `REDIS_URL`,
 used by the ML terminal. Set `ML_SERVICE_API_KEY` to the same value as
 `EDUTRACE_API_KEY` when using a non-default ML API key.
 
+For production, set `NODE_ENV=production`, `FRONTEND_URL` to the exact HTTPS
+web origin, all `SMTP_*` settings, and `EMAIL_FROM_ADDRESS`. The API refuses
+to start without SMTP credentials in production. If `EDUTRACE_SMS_PROVIDER`
+is `arkesel`, also set `ARKESEL_API_KEY` and use an approved
+`EDUTRACE_SMS_SENDER_ID` in the ML service environment.
+
 The standalone web client defaults to `http://localhost:5000`, matching the
 local API default. Docker overrides this with `NEXT_PUBLIC_API_URL` and uses
 port `4000` for the Compose API.

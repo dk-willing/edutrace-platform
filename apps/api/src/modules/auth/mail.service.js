@@ -27,3 +27,15 @@ export async function sendPasswordResetEmail({ email, resetUrl }) {
   });
   return true;
 }
+
+export async function sendVerificationEmail({ email, verificationUrl }) {
+  const transport = getTransporter();
+  if (!transport) return false;
+  await transport.sendMail({
+    from: env.EMAIL_FROM_ADDRESS,
+    to: email,
+    subject: "Verify your EduTrace account",
+    text: `Verify your EduTrace account using this link:\n\n${verificationUrl}\n\nThis link expires in 24 hours.`,
+  });
+  return true;
+}

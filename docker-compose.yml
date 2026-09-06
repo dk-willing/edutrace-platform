@@ -72,6 +72,14 @@ services:
       ML_SERVICE_URL: http://ml-service:8000
       ML_SERVICE_SHARED_SECRET: ${ML_SERVICE_SHARED_SECRET:-dev_shared_secret_change_me}
       ML_SERVICE_API_KEY: ${EDUTRACE_API_KEY:-dev_demo_key_change_me}
+      FRONTEND_URL: ${FRONTEND_URL:-http://localhost:3000}
+      SMTP_HOST: ${SMTP_HOST:-}
+      SMTP_PORT: ${SMTP_PORT:-587}
+      SMTP_USER: ${SMTP_USER:-}
+      SMTP_PASSWORD: ${SMTP_PASSWORD:-}
+      EMAIL_FROM_ADDRESS: ${EMAIL_FROM_ADDRESS:-no-reply@edutrace.example}
+      EDUTRACE_SMS_PROVIDER: ${EDUTRACE_SMS_PROVIDER:-console}
+      ARKESEL_API_KEY: ${ARKESEL_API_KEY:-}
       JWT_ACCESS_SECRET: ${JWT_ACCESS_SECRET:-dev_access_secret_change_me}
       JWT_REFRESH_SECRET: ${JWT_REFRESH_SECRET:-dev_refresh_secret_change_me}
       PII_PSEUDONYM_SALT: ${PII_PSEUDONYM_SALT:-dev_salt_change_me}

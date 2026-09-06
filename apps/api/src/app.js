@@ -42,10 +42,7 @@ export function createApp() {
   app.use(helmet());
   app.use(
     cors({
-      origin:
-        env.NODE_ENV === "production"
-          ? [] /* filled in Phase 15 with real origins */
-          : true,
+      origin: env.NODE_ENV === "production" ? env.FRONTEND_URL : true,
       credentials: true,
     }),
   );
