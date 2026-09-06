@@ -24,4 +24,4 @@ RUN addgroup -S edutrace && adduser -S edutrace -G edutrace
 USER edutrace
 
 EXPOSE 4000
-CMD ["node", "src/server.js"]
+CMD ["npm", "start"]
