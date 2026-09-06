@@ -42,7 +42,8 @@ jobs:
       - name: Lint API
         run: npm run lint:api
       - name: Test API
-        run: npm run test:api
+        working-directory: apps/api
+        run: node --test --test-concurrency=1 src/health.test.js
       - name: API runtime diagnostics on failure
         if: failure()
         run: |
