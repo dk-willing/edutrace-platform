@@ -9,7 +9,7 @@
   "scripts": {
     "dev": "nodemon --watch src/server.js",
     "start": "npm run migrate && node src/server.js",
-    "migrate": "prisma migrate deploy --schema=./prisma/schema.prisma",
+    "migrate": "prisma migrate deploy --schema=../../packages/db/prisma/schema.prisma",
     "db:generate": "node src/scripts/generate-prisma.js",
     "create:school": "node src/scripts/create-school.js",
     "test": "node --test --test-concurrency=1 src/health.test.js",
