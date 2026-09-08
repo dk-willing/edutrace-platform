@@ -20,6 +20,7 @@
     "api:generate": "npm run db:generate --workspace=@edutrace/api",
     "db:generate": "npm run generate --workspace=@edutrace/db",
     "db:migrate": "npm run migrate:dev --workspace=@edutrace/db",
+    "db:deploy": "npm exec --workspace=@edutrace/db prisma migrate deploy -- --schema=../../packages/db/prisma/schema.prisma",
     "db:validate": "npm run validate --workspace=@edutrace/db"
   }
 }

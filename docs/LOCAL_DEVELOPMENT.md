@@ -1,30 +1,27 @@
 # Local development
 
-## Docker path
+## Local services
 
-From the repository root:
-
-```powershell
-docker compose up --build
-```
+Run PostgreSQL and Redis through managed development instances or native
+services. This repository does not require a container runtime.
 
 The services are then available at:
 
 - Web: `http://localhost:3000`
-- Node API: `http://localhost:4000`
-- API liveness: `http://localhost:4000/health/live`
-- ML service: internal to Docker only
+- Node API: `http://localhost:5000`
+- API liveness: `http://localhost:5000/health/live`
+- ML service: `http://localhost:8000`
 
-In another terminal, apply the Prisma schema to the development database:
+Apply pending migrations from the repository root:
 
 ```powershell
-docker compose exec api npx prisma db push --schema=./prisma/schema.prisma
+npm run db:deploy
 ```
 
 Bootstrap a school and system administrator:
 
 ```powershell
-docker compose exec api node src/scripts/create-school.js --name="ABC Junior High" --code=ABC-JHS --district=Accra --region=Greater-Accra --admin-email=admin@example.com --admin-password="change-this-password"
+npm run create:school --workspace=@edutrace/api -- --name="ABC Junior High" --code=ABC-JHS --district=Accra --region=Greater-Accra --admin-email=admin@example.com --admin-password="change-this-password"
 ```
 
 The command prints the school code. Teachers use that code on `/register`.
@@ -54,17 +51,9 @@ DATABASE_URL="postgresql://...:...@aws-1-REGION.pooler.supabase.com:6543/postgre
 DIRECT_URL="postgresql://...:...@aws-1-REGION.pooler.supabase.com:5432/postgres?sslmode=require"
 ```
 
-This repository does not contain a migration yet. After the database URL is
-reachable, create and apply the initial migration once:
-
-```powershell
-npm run migrate:dev --workspace=@edutrace/db -- --name init
-```
-
-Use the direct/session URL for that command. `prisma migrate dev` will create
-`packages/db/prisma/migrations/` and apply the schema. For a disposable local
-database, `prisma db push` is also acceptable, but it does not create migration
-history.
+Migrations are committed under `packages/db/prisma/migrations/`. Use
+`prisma migrate deploy` for repeatable environments and do not use `db push`
+outside disposable development databases.
 
 Start the ML service from `services/ml` with its Python environment:
 

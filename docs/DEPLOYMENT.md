@@ -5,13 +5,13 @@ ML service publicly.
 
 ## Services
 
-Deploy five private/public components:
+Deploy five private/public components as managed services or native processes:
 
 - Managed PostgreSQL
 - Managed Redis
-- `ml-service` from `services/ml/Dockerfile`, private only
-- `api` from the repository root with `apps/api/Dockerfile`
-- `web` from `apps/web/Dockerfile`, public HTTPS domain
+- `ml-service` from `services/ml`, private only
+- `api` from `apps/api`, public API domain
+- `web` from `apps/web`, public HTTPS domain
 
 Railway, Render, and AWS ECS/Fargate can all host this topology. Railway is the
 lowest-operations option for an initial team environment; AWS is preferable
@@ -20,12 +20,12 @@ customization.
 
 ## Build and start settings
 
-API build context must be the repository root:
+API:
 
 ```text
-Dockerfile: apps/api/Dockerfile
-Build context: .
-Start command: npm start
+Working directory: apps/api
+Build: npm ci && npm run db:generate
+Start: npm start
 ```
 
 The API start command runs `prisma migrate deploy` before starting Express.
@@ -34,17 +34,18 @@ Migrations must be reviewed and committed before deployment.
 Web:
 
 ```text
-Dockerfile: apps/web/Dockerfile
-Build context: apps/web
-Start command: npm run start
+Working directory: apps/web
+Build: npm ci && npm run build
+Start: npm run start
 Port: 3000
 ```
 
 ML:
 
 ```text
-Dockerfile: services/ml/Dockerfile
-Start command: image default command
+Working directory: services/ml
+Install: pip install -e ./vendor
+Start: uvicorn app.main:app --host 0.0.0.0 --port 8000
 Port: 8000 private
 ```
 
@@ -93,7 +94,7 @@ frontend domain, and transactional email provider values.
 
 ## Release sequence
 
-1. Build and scan the API, web, and ML images.
+1. Build and scan the API, web, and ML dependencies.
 2. Apply committed migrations with the API release command.
 3. Start the private ML service and verify `GET /health` reports a loaded model.
 4. Start the API and verify `/health/live` and `/health/ready`.

@@ -79,7 +79,7 @@ intentional, not a bug to "fix" by pre-approving something.
 
 ## Run locally
 
-See [docs/LOCAL_DEVELOPMENT.md](docs/LOCAL_DEVELOPMENT.md) for Docker and
+See [docs/LOCAL_DEVELOPMENT.md](docs/LOCAL_DEVELOPMENT.md) for native
 process-based startup. The development bootstrap command creates the first
 school and system administrator, then prints the school code teachers use at
 `/register`.
@@ -105,5 +105,3 @@ npm run create:school --workspace=@edutrace/api -- \
  --region=Greater-Accra \
  --admin-email=admin@example.com \
  --admin-password="change-this-password"
-
-# TEST

@@ -53,9 +53,3 @@ jobs:
           node -e "console.log(require.resolve('express', { paths: ['./apps/api'] }))"
       - name: Build web application
         run: npm run build:web
-      - name: Build API image
-        run: docker build --file apps/api/Dockerfile --tag edutrace-api:ci .
-      - name: Build web image
-        run: docker build --file apps/web/Dockerfile --tag edutrace-web:ci apps/web
-      - name: Build ML image
-        run: docker build --file services/ml/Dockerfile --tag edutrace-ml:ci services/ml
