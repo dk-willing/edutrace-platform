@@ -17,10 +17,8 @@ import { requireAuth } from "./auth.middleware.js";
 import { asyncHandler } from "../../utils/asyncHandler.js";
 import { env } from "../../config/env.js";
 import { logger } from "../../utils/logger.js";
-import {
-  sendPasswordResetEmail,
-  sendVerificationEmail,
-} from "./mail.service.js";
+import { sendPasswordResetEmail } from "./mail.service.js";
+import { sendVerificationEmail } from "../../lib/email.js";
 
 const router = Router();
 const credentials = z.object({
@@ -66,12 +64,7 @@ router.post(
         `\n[EduTrace] Verification link for ${result.teacher.email}:\n${verificationUrl}\n`,
       );
     }
-    if (env.NODE_ENV === "production") {
-      await sendVerificationEmail({
-        email: result.teacher.email,
-        verificationUrl: `${env.FRONTEND_URL}/verify-email?token=${encodeURIComponent(result.verificationToken)}`,
-      });
-    }
+    await sendVerificationEmail(result.teacher.email, result.verificationToken);
     logger.info({ email: result.teacher.email }, "teacher account created");
     res.status(201).json({
       success: true,
@@ -84,6 +77,17 @@ router.post(
   "/verify-email",
   asyncHandler(async (req, res) => {
     const input = z.object({ token: z.string().min(32) }).parse(req.body);
+    res.json({
+      success: true,
+      teacher: await verifyEmail(prisma, input.token),
+    });
+  }),
+);
+
+router.get(
+  "/verify",
+  asyncHandler(async (req, res) => {
+    const input = z.object({ token: z.string().min(32) }).parse(req.query);
     res.json({
       success: true,
       teacher: await verifyEmail(prisma, input.token),

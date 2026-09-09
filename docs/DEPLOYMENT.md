@@ -51,6 +51,26 @@ Port: 8000 private
 
 ## Required secrets
 
+For the current deployment URLs, configure these platform variables:
+
+Vercel web service:
+
+```env
+NEXT_PUBLIC_API_URL=https://edutrace-platform-1.onrender.com
+```
+
+Render API service:
+
+```env
+FRONTEND_URL=https://edutrace-platform-web.vercel.app
+PORT=10000
+NODE_ENV=production
+```
+
+`NEXT_PUBLIC_API_URL` is embedded during the Vercel build, so save the
+variable and redeploy the web service after changing it. `FRONTEND_URL` must
+match the Vercel origin exactly so API CORS permits browser requests.
+
 Set these in the platform secret manager. Never use the Compose development
 fallbacks in a shared environment:
 

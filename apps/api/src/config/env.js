@@ -41,6 +41,7 @@ const EnvSchema = z
     SMTP_USER: z.string().optional(),
     SMTP_PASSWORD: z.string().optional(),
     EMAIL_FROM_ADDRESS: z.string().email().default("no-reply@edutrace.example"),
+    RESEND_API_KEY: z.string().optional(),
 
     LOGIN_MAX_ATTEMPTS: z.coerce.number().int().positive().default(5),
     LOGIN_LOCKOUT_MINUTES: z.coerce.number().int().positive().default(15),
@@ -51,6 +52,7 @@ const EnvSchema = z
         ["SMTP_HOST", value.SMTP_HOST],
         ["SMTP_USER", value.SMTP_USER],
         ["SMTP_PASSWORD", value.SMTP_PASSWORD],
+        ["RESEND_API_KEY", value.RESEND_API_KEY],
       ]) {
         if (!setting)
           context.addIssue({

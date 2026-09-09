@@ -96,12 +96,8 @@ export async function registerTeacher(prisma, input) {
       phone: input.phone?.trim() || null,
       passwordHash,
       status: "PENDING_EMAIL_VERIFICATION",
-      emailVerifications: {
-        create: {
-          tokenHash: hashToken(rawVerificationToken),
-          expiresAt: new Date(Date.now() + 24 * 60 * 60 * 1000),
-        },
-      },
+      verificationToken: rawVerificationToken,
+      verificationTokenExpiry: new Date(Date.now() + 24 * 60 * 60 * 1000),
     },
     include: { school: true },
   });
@@ -113,28 +109,30 @@ export async function registerTeacher(prisma, input) {
 }
 
 export async function verifyEmail(prisma, token) {
-  const record = await prisma.emailVerificationToken.findUnique({
-    where: { tokenHash: hashToken(token) },
-    include: { teacher: { include: { school: true } } },
+  const teacher = await prisma.teacher.findFirst({
+    where: {
+      verificationToken: token,
+      verificationTokenExpiry: { gt: new Date() },
+    },
+    include: { school: true },
   });
-  if (!record || record.usedAt || record.expiresAt <= new Date()) {
+  if (!teacher) {
     throw new ValidationError(
       "This email verification link is invalid or expired.",
     );
   }
 
-  const teacher = await prisma.$transaction(async (tx) => {
-    await tx.emailVerificationToken.update({
-      where: { id: record.id },
-      data: { usedAt: new Date() },
-    });
-    return tx.teacher.update({
-      where: { id: record.teacherId },
-      data: { emailVerified: true, status: "PENDING_SCHOOL_APPROVAL" },
-      include: { school: true },
-    });
+  const verifiedTeacher = await prisma.teacher.update({
+    where: { id: teacher.id },
+    data: {
+      emailVerified: true,
+      verificationToken: null,
+      verificationTokenExpiry: null,
+      status: "PENDING_SCHOOL_APPROVAL",
+    },
+    include: { school: true },
   });
-  return publicTeacher(teacher);
+  return publicTeacher(verifiedTeacher);
 }
 
 export async function login(prisma, input) {
