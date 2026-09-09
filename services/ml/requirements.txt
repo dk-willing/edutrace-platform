@@ -1,0 +1,2 @@
+# Install the vendored ML package and its declared runtime dependencies.
+-e ./services/ml/vendor
