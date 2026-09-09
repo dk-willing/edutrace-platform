@@ -103,6 +103,14 @@ router.post(
       where: { id: req.params.teacherId },
     });
     if (!teacher) throw new NotFoundError("Teacher not found.");
+    if (
+      !teacher.emailVerified ||
+      teacher.status !== "PENDING_SCHOOL_APPROVAL"
+    ) {
+      throw new ForbiddenError(
+        "Only teachers who have verified their email can be approved.",
+      );
+    }
     const schoolIds = await getAdminSchoolIds(req);
     if (!teacher.schoolId || !schoolIds.includes(teacher.schoolId)) {
       throw new ForbiddenError(
@@ -150,7 +158,11 @@ router.get(
   asyncHandler(async (req, res) => {
     const schoolIds = await getAdminSchoolIds(req);
     const teachers = await prisma.teacher.findMany({
-      where: { schoolId: { in: schoolIds } },
+      where: {
+        schoolId: { in: schoolIds },
+        emailVerified: true,
+        status: "PENDING_SCHOOL_APPROVAL",
+      },
       select: {
         id: true,
         firstName: true,

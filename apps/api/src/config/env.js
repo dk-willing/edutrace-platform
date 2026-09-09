@@ -48,18 +48,12 @@ const EnvSchema = z
   })
   .superRefine((value, context) => {
     if (value.NODE_ENV === "production") {
-      for (const [key, setting] of [
-        ["SMTP_HOST", value.SMTP_HOST],
-        ["SMTP_USER", value.SMTP_USER],
-        ["SMTP_PASSWORD", value.SMTP_PASSWORD],
-        ["RESEND_API_KEY", value.RESEND_API_KEY],
-      ]) {
-        if (!setting)
-          context.addIssue({
-            code: z.ZodIssueCode.custom,
-            path: [key],
-            message: "Required in production.",
-          });
+      if (!value.RESEND_API_KEY) {
+        context.addIssue({
+          code: z.ZodIssueCode.custom,
+          path: ["RESEND_API_KEY"],
+          message: "Required in production.",
+        });
       }
       if (value.EDUTRACE_SMS_PROVIDER === "arkesel" && !value.ARKESEL_API_KEY) {
         context.addIssue({
