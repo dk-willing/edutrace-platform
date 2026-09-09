@@ -7,14 +7,24 @@ import { Workspace } from "../../dashboard/Workspace";
 import { apiRequest } from "../../lib/api";
 import { LoadingButton } from "../../components/LoadingButton";
 
+const emptyStudentForm = {
+  studentName: "",
+  gradeLevel: "JHS1",
+  externalId: "",
+  guardianName: "",
+  guardianMsisdn: "",
+};
+
 export default function ClassDetailsPage() {
   const { classId } = useParams();
   const [classRecord, setClassRecord] = useState(null);
   const [students, setStudents] = useState([]);
   const [files, setFiles] = useState([]);
+  const [studentForm, setStudentForm] = useState(emptyStudentForm);
   const [preview, setPreview] = useState(null);
   const [loading, setLoading] = useState(true);
   const [busy, setBusy] = useState(false);
+  const [studentSaving, setStudentSaving] = useState(false);
   const [error, setError] = useState("");
   const [message, setMessage] = useState("");
 
@@ -23,10 +33,45 @@ export default function ClassDetailsPage() {
       const result = await apiRequest(`/api/v1/classes/${classId}/students`);
       setClassRecord(result.class);
       setStudents(result.students || []);
+      if (result.class?.gradeLevel)
+        setStudentForm((current) => ({
+          ...current,
+          gradeLevel: current.studentName
+            ? current.gradeLevel
+            : result.class.gradeLevel,
+        }));
     } catch (requestError) {
       setError(requestError.message);
     } finally {
       setLoading(false);
+    }
+  }
+
+  async function addStudent(event) {
+    event.preventDefault();
+    setStudentSaving(true);
+    setError("");
+    setMessage("");
+    try {
+      await apiRequest(`/api/v1/classes/${classId}/students`, {
+        method: "POST",
+        body: {
+          ...studentForm,
+          externalId: studentForm.externalId || undefined,
+          guardianName: studentForm.guardianName || undefined,
+          guardianMsisdn: studentForm.guardianMsisdn || undefined,
+        },
+      });
+      setStudentForm({
+        ...emptyStudentForm,
+        gradeLevel: classRecord.gradeLevel,
+      });
+      setMessage("Student added to this class.");
+      await loadClass();
+    } catch (requestError) {
+      setError(requestError.message);
+    } finally {
+      setStudentSaving(false);
     }
   }
 
@@ -121,6 +166,107 @@ export default function ClassDetailsPage() {
         </section>
       ) : (
         <>
+          <section className="panel page-card admin-form-panel">
+            <div className="panel-head">
+              <div>
+                <div className="eyebrow">New admission</div>
+                <h2>Add a student manually</h2>
+              </div>
+              <span className="td-muted">No CSV required</span>
+            </div>
+            <form className="form" onSubmit={addStudent}>
+              <div className="field">
+                <label htmlFor="student-name">Student name *</label>
+                <input
+                  id="student-name"
+                  required
+                  value={studentForm.studentName}
+                  onChange={(event) =>
+                    setStudentForm({
+                      ...studentForm,
+                      studentName: event.target.value,
+                    })
+                  }
+                  placeholder="Amina Mensah"
+                />
+              </div>
+              <div
+                className="feature-grid"
+                style={{ gridTemplateColumns: "1fr 1fr", gap: 10 }}
+              >
+                <div className="field">
+                  <label htmlFor="student-grade">Grade level *</label>
+                  <select
+                    id="student-grade"
+                    value={studentForm.gradeLevel}
+                    onChange={(event) =>
+                      setStudentForm({
+                        ...studentForm,
+                        gradeLevel: event.target.value,
+                      })
+                    }
+                  >
+                    <option value="JHS1">JHS 1</option>
+                    <option value="JHS2">JHS 2</option>
+                    <option value="JHS3">JHS 3</option>
+                  </select>
+                </div>
+                <div className="field">
+                  <label htmlFor="student-id">Student ID</label>
+                  <input
+                    id="student-id"
+                    value={studentForm.externalId}
+                    onChange={(event) =>
+                      setStudentForm({
+                        ...studentForm,
+                        externalId: event.target.value,
+                      })
+                    }
+                    placeholder="GH-03021"
+                  />
+                </div>
+              </div>
+              <div
+                className="feature-grid"
+                style={{ gridTemplateColumns: "1fr 1fr", gap: 10 }}
+              >
+                <div className="field">
+                  <label htmlFor="guardian-name">Guardian name</label>
+                  <input
+                    id="guardian-name"
+                    value={studentForm.guardianName}
+                    onChange={(event) =>
+                      setStudentForm({
+                        ...studentForm,
+                        guardianName: event.target.value,
+                      })
+                    }
+                  />
+                </div>
+                <div className="field">
+                  <label htmlFor="guardian-msisdn">Guardian phone</label>
+                  <input
+                    id="guardian-msisdn"
+                    value={studentForm.guardianMsisdn}
+                    onChange={(event) =>
+                      setStudentForm({
+                        ...studentForm,
+                        guardianMsisdn: event.target.value,
+                      })
+                    }
+                  />
+                </div>
+              </div>
+              <LoadingButton
+                className="button button-primary"
+                disabled={studentSaving}
+                loading={studentSaving}
+                type="submit"
+              >
+                {studentSaving ? "Adding student..." : "Add student"}
+              </LoadingButton>
+            </form>
+          </section>
           <section className="panel page-card admin-form-panel">
             <div className="panel-head">
               <div>

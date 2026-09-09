@@ -51,7 +51,11 @@ router.get(
     if (req.auth.role === "TEACHER") where.ownerId = req.auth.teacherId;
     const classes = await prisma.class.findMany({
       where,
-      include: { _count: { select: { students: true } } },
+      include: {
+        _count: {
+          select: { students: { where: { isActive: true } } },
+        },
+      },
       orderBy: [{ academicYear: "desc" }, { name: "asc" }],
     });
     res.json({ success: true, classes });
