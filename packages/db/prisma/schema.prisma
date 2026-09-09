@@ -278,7 +278,7 @@ model Class {
   students   Student[]
   csvUploads CsvUpload[]
 
-  @@unique([schoolId, name, academicYear])
+  @@unique([schoolId, ownerId, name, academicYear])
   @@index([schoolId])
   @@index([ownerId])
 }

@@ -11,12 +11,12 @@ import {
 } from "../lib/api";
 
 const teacherNav = [
-  ["⌂", "Overview", "/dashboard"],
   ["▦", "Classes", "/classes"],
   ["○", "Students", "/students"],
   ["⇧", "Imports", "/imports"],
   ["▤", "Reports", "/reports"],
 ];
+const overviewNav = ["⌂", "Overview", "/dashboard"];
 const secondary = [
   ["!", "Notifications", "/notifications"],
   ["⚙", "Settings", "/settings"],
@@ -53,7 +53,7 @@ export function Workspace({
     teacher?.role === "TEACHER" &&
     teacher?.emailVerified === true &&
     teacher?.status === "ACTIVE";
-  const visibleNav = isApprovedTeacher ? teacherNav : [];
+  const visibleNav = [overviewNav, ...(isApprovedTeacher ? teacherNav : [])];
   async function logout() {
     setLoggingOut(true);
     try {

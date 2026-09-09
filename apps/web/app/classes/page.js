@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { useEffect, useState } from "react";
 import { Workspace } from "../dashboard/Workspace";
+import { LoadingButton } from "../components/LoadingButton";
 import { apiRequest } from "../lib/api";
 
 const emptyForm = {
@@ -141,13 +142,13 @@ export default function ClassesPage() {
             Create your first class to begin adding students. Classes are
             private to your school and owned by you.
           </p>
-          <button
+          <LoadingButton
             className="button button-primary"
             type="button"
             onClick={() => setOpen(true)}
           >
             Create your first class
-          </button>
+          </LoadingButton>
         </section>
       ) : (
         <div className="feature-grid">

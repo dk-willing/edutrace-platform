@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import { Workspace, riskTierLabel } from "../dashboard/Workspace";
 import { apiRequest, downloadFile } from "../lib/api";
 import { PageSkeleton } from "../components/PageSkeleton";
+import { LoadingButton } from "../components/LoadingButton";
 
 export default function ReportsPage() {
   const [report, setReport] = useState(null);
@@ -172,7 +173,7 @@ export default function ReportsPage() {
                         <td>{item.highCount}</td>
                         <td>{item.modelVersion || "Unavailable"}</td>
                         <td>
-                          <button
+                          <LoadingButton
                             className="panel-link"
                             onClick={() =>
                               downloadFile(
@@ -183,7 +184,7 @@ export default function ReportsPage() {
                             type="button"
                           >
                             Download PDF
-                          </button>
+                          </LoadingButton>
                         </td>
                       </tr>
                     ))}

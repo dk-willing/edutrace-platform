@@ -15,7 +15,12 @@ router.get(
     if (!req.auth.schoolId)
       throw new ForbiddenError("Your account is not linked to a school.");
     const reports = await prisma.analysisReport.findMany({
-      where: { schoolId: req.auth.schoolId },
+      where: {
+        schoolId: req.auth.schoolId,
+        ...(req.auth.role === "TEACHER"
+          ? { generatedById: req.auth.teacherId }
+          : {}),
+      },
       orderBy: { createdAt: "desc" },
       take: 100,
       select: {
@@ -28,6 +33,7 @@ router.get(
         highCount: true,
         tierCounts: true,
         createdAt: true,
+        generatedBy: { select: { firstName: true, lastName: true } },
       },
     });
     res.json({ success: true, reports });
@@ -40,7 +46,13 @@ router.get(
     if (!req.auth.schoolId)
       throw new ForbiddenError("Your account is not linked to a school.");
     const report = await prisma.analysisReport.findFirst({
-      where: { id: req.params.reportId, schoolId: req.auth.schoolId },
+      where: {
+        id: req.params.reportId,
+        schoolId: req.auth.schoolId,
+        ...(req.auth.role === "TEACHER"
+          ? { generatedById: req.auth.teacherId }
+          : {}),
+      },
     });
     if (!report)
       return res.status(404).json({
@@ -63,6 +75,12 @@ router.get(
     const classWhere = {
       schoolId: req.auth.schoolId,
       ...(req.auth.role === "TEACHER" ? { ownerId: req.auth.teacherId } : {}),
+    };
+    const reportWhere = {
+      schoolId: req.auth.schoolId,
+      ...(req.auth.role === "TEACHER"
+        ? { generatedById: req.auth.teacherId }
+        : {}),
     };
     const classes = await prisma.class.findMany({
       where: classWhere,
@@ -113,9 +131,9 @@ router.get(
           })
         : null;
     const [analysisReportCount, latestAnalysis] = await prisma.$transaction([
-      prisma.analysisReport.count({ where: { schoolId: req.auth.schoolId } }),
+      prisma.analysisReport.count({ where: reportWhere }),
       prisma.analysisReport.findFirst({
-        where: { schoolId: req.auth.schoolId },
+        where: reportWhere,
         orderBy: { createdAt: "desc" },
         select: {
           id: true,

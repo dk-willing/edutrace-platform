@@ -48,7 +48,14 @@ router.get(
             : { id: "__no_observations__" }),
         },
       }),
-      prisma.analysisReport.count({ where: { schoolId: req.auth.schoolId } }),
+      prisma.analysisReport.count({
+        where: {
+          schoolId: req.auth.schoolId,
+          ...(req.auth.role === "TEACHER"
+            ? { generatedById: req.auth.teacherId }
+            : {}),
+        },
+      }),
       prisma.riskAssessment.groupBy({
         by: ["tier"],
         where: {
@@ -93,7 +100,12 @@ router.get(
         },
       }),
       prisma.analysisReport.findFirst({
-        where: { schoolId: req.auth.schoolId },
+        where: {
+          schoolId: req.auth.schoolId,
+          ...(req.auth.role === "TEACHER"
+            ? { generatedById: req.auth.teacherId }
+            : {}),
+        },
         orderBy: { createdAt: "desc" },
         select: {
           id: true,

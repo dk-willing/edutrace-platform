@@ -85,7 +85,7 @@ router.post(
     } catch (error) {
       if (error.code === "P2002")
         throw new ConflictError(
-          "A class with that name already exists for this academic year.",
+          "You already have a class with that name for this academic year.",
         );
       throw error;
     }
