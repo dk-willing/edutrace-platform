@@ -9,6 +9,7 @@ import {
 } from "../../middleware/errorHandler.js";
 import { requireAuth, requireRole } from "../auth/auth.middleware.js";
 import { asyncHandler } from "../../utils/asyncHandler.js";
+import { sendContactChangeEmail } from "../../lib/email.js";
 
 const router = Router();
 const schoolSchema = z.object({
@@ -176,6 +177,88 @@ router.get(
       orderBy: { createdAt: "desc" },
     });
     res.json({ success: true, teachers });
+  }),
+);
+
+router.get(
+  "/contact-changes",
+  requireRole("SYSTEM_ADMIN", "SCHOOL_ADMIN"),
+  asyncHandler(async (req, res) => {
+    const schoolIds = await getAdminSchoolIds(req);
+    const requests = await prisma.contactChangeRequest.findMany({
+      where: {
+        status: "PENDING",
+        teacher: { schoolId: { in: schoolIds } },
+      },
+      include: {
+        teacher: {
+          select: {
+            id: true,
+            firstName: true,
+            lastName: true,
+            email: true,
+            phone: true,
+          },
+        },
+      },
+      orderBy: { createdAt: "asc" },
+    });
+    res.json({ success: true, requests });
+  }),
+);
+
+router.post(
+  "/contact-changes/:requestId/approve",
+  requireRole("SYSTEM_ADMIN", "SCHOOL_ADMIN"),
+  asyncHandler(async (req, res) => {
+    const schoolIds = await getAdminSchoolIds(req);
+    const request = await prisma.contactChangeRequest.findFirst({
+      where: {
+        id: req.params.requestId,
+        status: "PENDING",
+        teacher: { schoolId: { in: schoolIds } },
+      },
+      include: { teacher: true },
+    });
+    if (!request) throw new NotFoundError("Contact change request not found.");
+    if (request.requestedEmail) {
+      const existing = await prisma.teacher.findFirst({
+        where: {
+          email: request.requestedEmail,
+          id: { not: request.teacherId },
+        },
+      });
+      if (existing)
+        throw new ConflictError("The requested email is already in use.");
+    }
+    const updated = await prisma.$transaction(async (tx) => {
+      const teacher = await tx.teacher.update({
+        where: { id: request.teacherId },
+        data: {
+          ...(request.requestedEmail ? { email: request.requestedEmail } : {}),
+          ...(request.requestedPhone ? { phone: request.requestedPhone } : {}),
+        },
+      });
+      await tx.contactChangeRequest.update({
+        where: { id: request.id },
+        data: {
+          status: "APPROVED",
+          reviewedById: req.auth.teacherId,
+          reviewedAt: new Date(),
+        },
+      });
+      return teacher;
+    });
+    await sendContactChangeEmail({
+      to: request.oldEmail,
+      requestedEmail: request.requestedEmail,
+      requestedPhone: request.requestedPhone,
+      approved: true,
+    });
+    res.json({
+      success: true,
+      teacher: { id: updated.id, email: updated.email, phone: updated.phone },
+    });
   }),
 );
 

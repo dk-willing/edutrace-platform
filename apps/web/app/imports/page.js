@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import { Workspace, riskTierLabel } from "../dashboard/Workspace";
 import { apiRequest, apiUrl, downloadFile } from "../lib/api";
+import { LoadingButton } from "../components/LoadingButton";
 
 export default function ImportsPage() {
   const [classes, setClasses] = useState([]);
@@ -193,13 +194,14 @@ export default function ImportsPage() {
               onChange={(event) => setFile(event.target.files?.[0] || null)}
             />
           </div>
-          <button
+          <LoadingButton
             className="button button-primary"
             disabled={busy || !classes.length}
+            loading={busy}
             type="submit"
           >
             {busy ? "Validating..." : "Upload and validate"}
-          </button>
+          </LoadingButton>
         </form>
         {!loadingClasses && !classes.length && (
           <p className="form-foot">
@@ -216,14 +218,15 @@ export default function ImportsPage() {
               <h2>{preview.valid ? "Import ready" : "Changes required"}</h2>
             </div>
             {preview.valid && (
-              <button
+              <LoadingButton
                 className="button button-primary"
                 disabled={busy}
+                loading={busy}
                 onClick={commit}
                 type="button"
               >
                 {busy ? "Importing..." : "Create class records"}
-              </button>
+              </LoadingButton>
             )}
           </div>
           <p className="section-sub">
@@ -314,13 +317,14 @@ export default function ImportsPage() {
               onChange={(event) => setBatchCapacity(event.target.value)}
             />
           </div>
-          <button
+          <LoadingButton
             className="button button-primary"
             disabled={scoring}
+            loading={scoring}
             type="submit"
           >
             {scoring ? "Analyzing..." : "Run risk analysis"}
-          </button>
+          </LoadingButton>
         </form>
       </section>
       {batchResult?.summary && (

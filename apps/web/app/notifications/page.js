@@ -60,11 +60,11 @@ export default function NotificationsPage() {
       title="Tasks & notifications"
       subtitle="Live support alerts for your school"
     >
-      <div className="notice" role="status">
-        {connected
-          ? "Live notifications connected."
-          : "Connecting to live notifications..."}
-      </div>
+      {connected && (
+        <div className="notice" role="status">
+          Live notifications connected.
+        </div>
+      )}
       <section className="panel">
         {!notifications.length ? (
           <div className="empty-state compact">

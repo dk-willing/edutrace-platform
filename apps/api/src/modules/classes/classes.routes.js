@@ -128,13 +128,14 @@ router.post(
       const duplicate = await prisma.student.findFirst({
         where: {
           schoolId: req.auth.schoolId,
+          classId: classRecord.id,
           externalId: input.externalId,
           isActive: true,
         },
       });
       if (duplicate)
         throw new ConflictError(
-          "A student with that external ID already exists in this school.",
+          "A student with that external ID already exists in this class.",
         );
     }
     const student = await prisma.student.create({

@@ -86,17 +86,19 @@ router.patch(
         );
     }
     if (input.externalId) {
+      const targetClassId = input.classId ?? student.classId;
       const duplicate = await prisma.student.findFirst({
         where: {
           id: { not: student.id },
           schoolId: req.auth.schoolId,
+          classId: targetClassId,
           externalId: input.externalId,
           isActive: true,
         },
       });
       if (duplicate)
         throw new ConflictError(
-          "That external ID is already used in this school.",
+          "That external ID is already used in this class.",
         );
     }
     const updated = await prisma.$transaction(async (tx) => {

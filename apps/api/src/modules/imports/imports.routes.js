@@ -287,6 +287,7 @@ router.post(
     const existing = await prisma.student.findMany({
       where: {
         schoolId: req.auth.schoolId,
+        classId: classRecord.id,
         externalId: {
           in: parsed.rows.map((row) => row.externalId).filter(Boolean),
         },
@@ -298,7 +299,7 @@ router.post(
       parsed.errors.push({
         row: 0,
         field: "externalId",
-        message: `Student ID ${item.externalId} already exists in this school.`,
+        message: `Student ID ${item.externalId} already exists in this class.`,
       });
     const record = await prisma.csvUpload.create({
       data: {

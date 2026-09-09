@@ -17,8 +17,16 @@ import { requireAuth } from "./auth.middleware.js";
 import { asyncHandler } from "../../utils/asyncHandler.js";
 import { env } from "../../config/env.js";
 import { logger } from "../../utils/logger.js";
+import {
+  ConflictError,
+  UnauthorizedError,
+  ValidationError,
+} from "../../middleware/errorHandler.js";
 import { sendPasswordResetEmail } from "./mail.service.js";
-import { sendVerificationEmail } from "../../lib/email.js";
+import {
+  sendContactChangeEmail,
+  sendVerificationEmail,
+} from "../../lib/email.js";
 
 const router = Router();
 const credentials = z.object({
@@ -212,5 +220,60 @@ router.post(
 router.get("/me", requireAuth, (req, res) => {
   res.json({ success: true, teacher: req.auth.teacher });
 });
+
+router.post(
+  "/contact-change",
+  requireAuth,
+  asyncHandler(async (req, res) => {
+    const input = z
+      .object({
+        email: z.string().email().optional(),
+        phone: z.string().trim().min(7).max(32).optional(),
+      })
+      .refine((value) => value.email || value.phone, {
+        message: "Provide an email address or phone number to change.",
+      });
+    const parsed = input.parse(req.body);
+    const email = parsed.email?.trim().toLowerCase();
+    const phone = parsed.phone?.trim();
+    const teacher = await prisma.teacher.findUnique({
+      where: { id: req.auth.teacherId },
+    });
+    if (!teacher) throw new UnauthorizedError("Authentication is required.");
+    if (email && email !== teacher.email) {
+      const existing = await prisma.teacher.findUnique({ where: { email } });
+      if (existing) throw new ConflictError("That email is already in use.");
+    }
+    const pending = await prisma.contactChangeRequest.findFirst({
+      where: { teacherId: teacher.id, status: "PENDING" },
+    });
+    if (pending)
+      throw new ConflictError(
+        "A contact detail change is already awaiting approval.",
+      );
+    if (email === teacher.email && phone === teacher.phone)
+      throw new ValidationError(
+        "The new contact details match your current details.",
+      );
+    const request = await prisma.contactChangeRequest.create({
+      data: {
+        teacherId: teacher.id,
+        oldEmail: teacher.email,
+        requestedEmail: email && email !== teacher.email ? email : null,
+        requestedPhone: phone && phone !== teacher.phone ? phone : null,
+      },
+    });
+    await sendContactChangeEmail({
+      to: teacher.email,
+      requestedEmail: request.requestedEmail,
+      requestedPhone: request.requestedPhone,
+    });
+    res.status(201).json({
+      success: true,
+      message:
+        "Your request was sent to your school administrator for approval.",
+    });
+  }),
+);
 
 export { router as authRouter };

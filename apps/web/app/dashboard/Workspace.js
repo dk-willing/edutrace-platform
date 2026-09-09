@@ -16,7 +16,6 @@ const teacherNav = [
   ["⇧", "Imports", "/imports"],
   ["▤", "Reports", "/reports"],
 ];
-const overviewNav = ["⌂", "Overview", "/dashboard"];
 const secondary = [
   ["!", "Notifications", "/notifications"],
   ["⚙", "Settings", "/settings"],
@@ -53,6 +52,9 @@ export function Workspace({
     teacher?.role === "TEACHER" &&
     teacher?.emailVerified === true &&
     teacher?.status === "ACTIVE";
+  const isAdministrator = teacher?.role === "SYSTEM_ADMIN";
+  const homePath = isAdministrator ? "/admin" : "/dashboard";
+  const overviewNav = ["⌂", "Overview", homePath];
   const visibleNav = [overviewNav, ...(isApprovedTeacher ? teacherNav : [])];
   async function logout() {
     setLoggingOut(true);
@@ -69,7 +71,7 @@ export function Workspace({
   return (
     <div className="workspace">
       <aside className="sidebar">
-        <Link className="logo" href="/dashboard">
+        <Link className="logo" href={homePath}>
           <span className="logo-mark">ET</span>
           <span>EduTrace</span>
         </Link>

@@ -43,6 +43,12 @@ enum AccountStatus {
   DEACTIVATED
 }
 
+enum ContactChangeStatus {
+  PENDING
+  APPROVED
+  REJECTED
+}
+
 enum SchoolStatus {
   ONBOARDING
   ACTIVE
@@ -216,10 +222,29 @@ model Teacher {
   interventionsOwned     Intervention[]
   analysisReports        AnalysisReport[]
   classesOwned           Class[]                  @relation("ClassOwner")
+  contactChangeRequests  ContactChangeRequest[]   @relation("ContactChangeTeacher")
+  reviewedContactChanges ContactChangeRequest[]   @relation("ContactChangeReviewer")
 
   @@index([schoolId])
   @@index([role])
   @@index([status])
+}
+
+model ContactChangeRequest {
+  id             String              @id @default(cuid())
+  teacherId      String
+  teacher        Teacher             @relation("ContactChangeTeacher", fields: [teacherId], references: [id])
+  oldEmail       String
+  requestedEmail String?
+  requestedPhone String?
+  status         ContactChangeStatus @default(PENDING)
+  reviewedById   String?
+  reviewedBy     Teacher?            @relation("ContactChangeReviewer", fields: [reviewedById], references: [id])
+  reviewedAt     DateTime?
+  createdAt      DateTime            @default(now())
+
+  @@index([teacherId, status])
+  @@index([status, createdAt])
 }
 
 model RefreshToken {

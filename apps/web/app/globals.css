@@ -171,6 +171,20 @@ button {
     transform 0.2s,
     box-shadow 0.2s;
 }
+.button-spinner {
+  animation: button-spin 0.75s linear infinite;
+  border: 2px solid currentColor;
+  border-right-color: transparent;
+  border-radius: 50%;
+  display: inline-block;
+  height: 14px;
+  width: 14px;
+}
+@keyframes button-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
 .button:hover {
   box-shadow: 0 8px 18px rgba(13, 78, 73, 0.15);
   transform: translateY(-1px);
@@ -683,6 +697,34 @@ h3 {
 .dashboard-content .panel {
   padding: 28px;
 }
+.workspace .content {
+  padding: 30px 28px 56px;
+}
+.workspace .content-head {
+  margin-bottom: 22px;
+}
+.workspace .stat-grid,
+.workspace .grid-2,
+.workspace .feature-grid {
+  gap: 12px;
+}
+.workspace .stat,
+.workspace .panel,
+.workspace .feature,
+.workspace .skeleton-card,
+.workspace .skeleton-panel {
+  border-radius: 4px;
+}
+.workspace .stat {
+  padding: 16px;
+}
+.workspace .panel {
+  padding: 18px;
+}
+.workspace .dashboard-content .stat,
+.workspace .dashboard-content .panel {
+  padding: 20px;
+}
 .loading-state {
   animation: loading-enter 0.25s ease-out;
 }
@@ -980,7 +1022,7 @@ td {
   color: var(--deep);
 }
 .admin-form-panel {
-  border-top: 3px solid var(--teal);
+  border-top: 0;
 }
 .admin-code-input {
   color: var(--deep);
@@ -990,7 +1032,16 @@ td {
   letter-spacing: 0.04em;
 }
 .admin-table-panel {
-  border-top: 3px solid var(--gold);
+  border-top: 0;
+}
+.workspace .form {
+  gap: 12px;
+}
+.workspace .page-card {
+  margin-top: 14px;
+}
+.workspace .panel-head {
+  margin-bottom: 16px;
 }
 .page-card {
   margin-top: 20px;

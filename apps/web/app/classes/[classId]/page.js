@@ -5,6 +5,7 @@ import { useEffect, useState } from "react";
 import { useParams } from "next/navigation";
 import { Workspace } from "../../dashboard/Workspace";
 import { apiRequest } from "../../lib/api";
+import { LoadingButton } from "../../components/LoadingButton";
 
 export default function ClassDetailsPage() {
   const { classId } = useParams();
@@ -144,13 +145,14 @@ export default function ClassDetailsPage() {
                   onChange={(event) => setFile(event.target.files?.[0] || null)}
                 />
               </div>
-              <button
+              <LoadingButton
                 className="button button-primary"
                 disabled={busy}
+                loading={busy}
                 type="submit"
               >
                 {busy ? "Validating..." : "Upload and validate"}
-              </button>
+              </LoadingButton>
             </form>
           </section>
           {preview && (
@@ -161,14 +163,15 @@ export default function ClassDetailsPage() {
                   <h2>{preview.valid ? "Import ready" : "Changes required"}</h2>
                 </div>
                 {preview.valid && (
-                  <button
+                  <LoadingButton
                     className="button button-primary"
                     disabled={busy}
+                    loading={busy}
                     onClick={commit}
                     type="button"
                   >
                     {busy ? "Importing..." : "Add students"}
-                  </button>
+                  </LoadingButton>
                 )}
               </div>
               <p className="section-sub">

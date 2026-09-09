@@ -3,26 +3,42 @@
 import Link from "next/link";
 import { useState } from "react";
 import { apiRequest } from "../lib/api";
+import { LoadingButton } from "../components/LoadingButton";
 
 export default function RegisterPage() {
   const [error, setError] = useState("");
   const [success, setSuccess] = useState("");
   const [busy, setBusy] = useState(false);
+  const [form, setForm] = useState({
+    firstName: "",
+    lastName: "",
+    schoolCode: "",
+    email: "",
+    phone: "",
+    password: "",
+    passwordConfirmation: "",
+  });
 
   async function submit(event) {
     event.preventDefault();
     setError("");
     setSuccess("");
     setBusy(true);
-    const formElement = event.currentTarget;
-    const form = new FormData(formElement);
     try {
       const result = await apiRequest("/api/v1/auth/register", {
         method: "POST",
-        body: Object.fromEntries(form.entries()),
+        body: form,
       });
       setSuccess("Account created. Check your email to verify it.");
-      formElement.reset();
+      setForm({
+        firstName: "",
+        lastName: "",
+        schoolCode: "",
+        email: "",
+        phone: "",
+        password: "",
+        passwordConfirmation: "",
+      });
     } catch (requestError) {
       setError(requestError.message);
     } finally {
@@ -65,14 +81,24 @@ export default function RegisterPage() {
               {success}
             </div>
           )}
-          <form className="form" onSubmit={submit}>
+          <form className="form" onSubmit={submit} autoComplete="off">
             <div
               className="feature-grid"
               style={{ gridTemplateColumns: "1fr 1fr", gap: 10 }}
             >
               <div className="field">
                 <label htmlFor="first">First name</label>
-                <input id="first" name="firstName" required placeholder="Ama" />
+                <input
+                  id="first"
+                  name="firstName"
+                  required
+                  autoComplete="off"
+                  value={form.firstName}
+                  onChange={(event) =>
+                    setForm({ ...form, firstName: event.target.value })
+                  }
+                  placeholder="Ama"
+                />
               </div>
               <div className="field">
                 <label htmlFor="last">Last name</label>
@@ -80,6 +106,11 @@ export default function RegisterPage() {
                   id="last"
                   name="lastName"
                   required
+                  autoComplete="off"
+                  value={form.lastName}
+                  onChange={(event) =>
+                    setForm({ ...form, lastName: event.target.value })
+                  }
                   placeholder="Mensah"
                 />
               </div>
@@ -90,6 +121,11 @@ export default function RegisterPage() {
                 id="school"
                 name="schoolCode"
                 required
+                autoComplete="off"
+                value={form.schoolCode}
+                onChange={(event) =>
+                  setForm({ ...form, schoolCode: event.target.value })
+                }
                 placeholder="ABC-JHS"
               />
             </div>
@@ -100,6 +136,11 @@ export default function RegisterPage() {
                 name="email"
                 required
                 type="email"
+                autoComplete="off"
+                value={form.email}
+                onChange={(event) =>
+                  setForm({ ...form, email: event.target.value })
+                }
                 placeholder="you@school.edu.gh"
               />
             </div>
@@ -111,7 +152,11 @@ export default function RegisterPage() {
                 required
                 type="tel"
                 placeholder="024 000 0000"
-                autoComplete="tel"
+                autoComplete="off"
+                value={form.phone}
+                onChange={(event) =>
+                  setForm({ ...form, phone: event.target.value })
+                }
               />
             </div>
             <div className="field">
@@ -122,6 +167,11 @@ export default function RegisterPage() {
                 minLength={12}
                 required
                 type="password"
+                autoComplete="new-password"
+                value={form.password}
+                onChange={(event) =>
+                  setForm({ ...form, password: event.target.value })
+                }
                 placeholder="At least 12 characters"
               />
             </div>
@@ -135,15 +185,20 @@ export default function RegisterPage() {
                 type="password"
                 placeholder="Repeat your password"
                 autoComplete="new-password"
+                value={form.passwordConfirmation}
+                onChange={(event) =>
+                  setForm({ ...form, passwordConfirmation: event.target.value })
+                }
               />
             </div>
-            <button
+            <LoadingButton
               className="button button-primary"
               disabled={busy}
+              loading={busy}
               type="submit"
             >
               {busy ? "Creating account..." : "Create account"}
-            </button>
+            </LoadingButton>
           </form>
           <p className="form-foot">
             Already registered? <Link href="/login">Sign in</Link>

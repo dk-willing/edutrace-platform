@@ -22,3 +22,36 @@ export async function sendVerificationEmail(to, token) {
   }
   return true;
 }
+
+export async function sendContactChangeEmail({
+  to,
+  requestedEmail,
+  requestedPhone,
+  approved = false,
+}) {
+  if (!resend) return false;
+  const subject = approved
+    ? "Your EduTrace contact details were updated"
+    : "EduTrace contact details change requested";
+  const status = approved
+    ? "Your school administrator approved the following contact detail change:"
+    : "A request was submitted to change your EduTrace contact details. Your current details remain active until your school administrator approves it:";
+  const details = [
+    requestedEmail ? `Email: ${requestedEmail}` : null,
+    requestedPhone ? `Phone: ${requestedPhone}` : null,
+  ]
+    .filter(Boolean)
+    .join("\n");
+  const { error } = await resend.emails.send({
+    from: env.EMAIL_FROM_ADDRESS,
+    to,
+    subject,
+    text: `${status}\n\n${details}`,
+    html: `<p>${status}</p><p>${details.replaceAll("\n", "<br />")}</p>`,
+  });
+  if (error) {
+    logger.error({ err: error, to }, "contact change email delivery failed");
+    throw new Error("Contact change email delivery failed.");
+  }
+  return true;
+}

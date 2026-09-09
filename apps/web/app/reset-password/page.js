@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useSearchParams } from "next/navigation";
 import { Suspense, useState } from "react";
 import { apiRequest } from "../lib/api";
+import { LoadingButton } from "../components/LoadingButton";
 
 function ResetPasswordForm() {
   const params = useSearchParams();
@@ -83,13 +84,14 @@ function ResetPasswordForm() {
                 autoComplete="new-password"
               />
             </div>
-            <button
+            <LoadingButton
               className="button button-primary"
               disabled={busy}
+              loading={busy}
               type="submit"
             >
               {busy ? "Updating..." : "Update password"}
-            </button>
+            </LoadingButton>
           </form>
           <p className="form-foot">
             <Link href="/login">Back to sign in</Link>

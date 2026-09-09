@@ -5,6 +5,7 @@ import { useEffect, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
 import { Workspace, RiskBadge } from "../../dashboard/Workspace";
 import { apiRequest } from "../../lib/api";
+import { LoadingButton } from "../../components/LoadingButton";
 
 export default function StudentProfilePage() {
   const { studentId } = useParams();
@@ -196,13 +197,14 @@ export default function StudentProfilePage() {
                 ))}
               </select>
             </div>
-            <button
+            <LoadingButton
               className="button button-primary"
               disabled={saving}
+              loading={saving}
               type="submit"
             >
               {saving ? "Saving..." : "Save changes"}
-            </button>
+            </LoadingButton>
           </form>
         </section>
         <section className="panel">

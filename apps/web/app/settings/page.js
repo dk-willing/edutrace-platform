@@ -3,16 +3,19 @@
 import { useEffect, useState } from "react";
 import { Workspace } from "../dashboard/Workspace";
 import { apiRequest } from "../lib/api";
+import { LoadingButton } from "../components/LoadingButton";
 
 const initialPassword = {
   currentPassword: "",
   password: "",
   passwordConfirmation: "",
 };
+const initialContact = { email: "", phone: "" };
 
 export default function SettingsPage() {
   const [teacher, setTeacher] = useState(null);
   const [passwordForm, setPasswordForm] = useState(initialPassword);
+  const [contactForm, setContactForm] = useState(initialContact);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
@@ -37,6 +40,28 @@ export default function SettingsPage() {
       });
       setMessage(`${result.message} Sign in again with your new password.`);
       setPasswordForm(initialPassword);
+    } catch (requestError) {
+      setError(requestError.message);
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  async function requestContactChange(event) {
+    event.preventDefault();
+    setSaving(true);
+    setError("");
+    setMessage("");
+    try {
+      const result = await apiRequest("/api/v1/auth/contact-change", {
+        method: "POST",
+        body: {
+          email: contactForm.email || undefined,
+          phone: contactForm.phone || undefined,
+        },
+      });
+      setMessage(result.message);
+      setContactForm(initialContact);
     } catch (requestError) {
       setError(requestError.message);
     } finally {
@@ -107,6 +132,49 @@ export default function SettingsPage() {
       </section>
       <section className="panel page-card">
         <div className="panel-head">
+          <h2>Request contact change</h2>
+        </div>
+        <p className="section-sub">
+          Your current email and phone remain active until a school
+          administrator approves the change. A confirmation is sent to your
+          current email.
+        </p>
+        <form className="form" onSubmit={requestContactChange}>
+          <div className="field">
+            <label htmlFor="new-email">New email address</label>
+            <input
+              id="new-email"
+              type="email"
+              value={contactForm.email}
+              onChange={(event) =>
+                setContactForm({ ...contactForm, email: event.target.value })
+              }
+              placeholder={teacher?.email || "name@school.org"}
+            />
+          </div>
+          <div className="field">
+            <label htmlFor="new-phone">New mobile number</label>
+            <input
+              id="new-phone"
+              value={contactForm.phone}
+              onChange={(event) =>
+                setContactForm({ ...contactForm, phone: event.target.value })
+              }
+              placeholder={teacher?.phone || "+233..."}
+            />
+          </div>
+          <LoadingButton
+            className="button button-primary"
+            disabled={saving}
+            loading={saving}
+            type="submit"
+          >
+            {saving ? "Sending request..." : "Request approval"}
+          </LoadingButton>
+        </form>
+      </section>
+      <section className="panel page-card">
+        <div className="panel-head">
           <h2>Change password</h2>
         </div>
         <p className="section-sub">
@@ -164,13 +232,14 @@ export default function SettingsPage() {
               autoComplete="new-password"
             />
           </div>
-          <button
+          <LoadingButton
             className="button button-primary"
             disabled={saving}
+            loading={saving}
             type="submit"
           >
             {saving ? "Updating..." : "Update password"}
-          </button>
+          </LoadingButton>
         </form>
       </section>
       <section className="panel page-card">

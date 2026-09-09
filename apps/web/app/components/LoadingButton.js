@@ -2,21 +2,30 @@
 
 import { useState } from "react";
 
-export function LoadingButton({ children, onClick, disabled, ...props }) {
-  const [loading, setLoading] = useState(false);
+export function LoadingButton({
+  children,
+  onClick,
+  disabled,
+  loading: controlledLoading,
+  ...props
+}) {
+  const [internalLoading, setInternalLoading] = useState(false);
+  const loading = controlledLoading ?? internalLoading;
 
   async function handleClick(event) {
-    setLoading(true);
+    if (!onClick) return;
+    setInternalLoading(true);
     try {
-      await onClick?.(event);
+      await onClick(event);
     } finally {
-      setLoading(false);
+      setInternalLoading(false);
     }
   }
 
   return (
     <button {...props} disabled={disabled || loading} onClick={handleClick}>
-      {loading ? "Loading..." : children}
+      {loading && <span className="button-spinner" aria-hidden="true" />}
+      <span>{loading ? "Loading..." : children}</span>
     </button>
   );
 }

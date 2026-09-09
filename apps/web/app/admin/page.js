@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 
 import { Workspace } from "../dashboard/Workspace";
+import { LoadingButton } from "../components/LoadingButton";
 import {
   apiRequest,
   clearAccessToken,
@@ -38,6 +39,7 @@ export default function AdminPage() {
   const [form, setForm] = useState(emptyForm);
   const [schools, setSchools] = useState([]);
   const [teachers, setTeachers] = useState([]);
+  const [contactChanges, setContactChanges] = useState([]);
   const [error, setError] = useState("");
   const [message, setMessage] = useState("");
   const [loading, setLoading] = useState(true);
@@ -66,6 +68,14 @@ export default function AdminPage() {
       setError(requestError.message);
     }
   }
+  async function loadContactChanges() {
+    try {
+      const result = await apiRequest("/api/v1/admin/contact-changes");
+      setContactChanges(result.requests || []);
+    } catch (requestError) {
+      setError(requestError.message);
+    }
+  }
 
   useEffect(() => {
     const storedTeacher = getCurrentTeacher();
@@ -73,6 +83,7 @@ export default function AdminPage() {
     if (getAccessToken() && storedTeacher?.role === "SYSTEM_ADMIN") {
       loadSchools();
       loadTeachers();
+      loadContactChanges();
     } else setLoading(false);
   }, []);
 
@@ -152,6 +163,20 @@ export default function AdminPage() {
       });
       setMessage("Teacher account approved successfully.");
       await loadTeachers();
+    } catch (requestError) {
+      setError(requestError.message);
+    }
+  }
+
+  async function approveContactChange(requestId) {
+    setError("");
+    setMessage("");
+    try {
+      await apiRequest(`/api/v1/admin/contact-changes/${requestId}/approve`, {
+        method: "POST",
+      });
+      setMessage("Contact details updated successfully.");
+      await loadContactChanges();
     } catch (requestError) {
       setError(requestError.message);
     }
@@ -376,13 +401,14 @@ export default function AdminPage() {
                 />
               </div>
             </div>
-            <button
+            <LoadingButton
               className="button button-primary"
               disabled={saving}
+              loading={saving}
               type="submit"
             >
               {saving ? "Creating school..." : "Create school"}
-            </button>
+            </LoadingButton>
           </form>
         </section>
         <section className="panel">
@@ -511,6 +537,55 @@ export default function AdminPage() {
                       ) : (
                         <span className="td-muted">Approved</span>
                       )}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
+      </section>
+      <section className="panel page-card">
+        <div className="panel-head">
+          <h2>Contact change requests</h2>
+          <span className="td-muted">{contactChanges.length} pending</span>
+        </div>
+        {!contactChanges.length ? (
+          <p className="section-sub">
+            No contact changes are awaiting approval.
+          </p>
+        ) : (
+          <div className="table-wrap">
+            <table>
+              <thead>
+                <tr>
+                  <th>Teacher</th>
+                  <th>Current email</th>
+                  <th>Requested details</th>
+                  <th>Action</th>
+                </tr>
+              </thead>
+              <tbody>
+                {contactChanges.map((request) => (
+                  <tr key={request.id}>
+                    <td>
+                      {request.teacher.firstName} {request.teacher.lastName}
+                    </td>
+                    <td className="td-muted">{request.oldEmail}</td>
+                    <td className="td-muted">
+                      {request.requestedEmail || ""}
+                      {request.requestedPhone
+                        ? ` · ${request.requestedPhone}`
+                        : ""}
+                    </td>
+                    <td>
+                      <button
+                        className="button button-primary"
+                        type="button"
+                        onClick={() => approveContactChange(request.id)}
+                      >
+                        Approve
+                      </button>
                     </td>
                   </tr>
                 ))}

@@ -10,11 +10,20 @@ const tiers = ["LOW", "WATCH", "ELEVATED", "HIGH"];
 
 export default function DashboardPage() {
   const [teacher, setTeacher] = useState(null);
+  const [greeting, setGreeting] = useState("Good morning");
   const [dashboard, setDashboard] = useState(null);
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(true);
   useEffect(() => {
     setTeacher(getCurrentTeacher());
+    const hour = new Date().getHours();
+    setGreeting(
+      hour < 12
+        ? "Good morning"
+        : hour < 18
+          ? "Good afternoon"
+          : "Good evening",
+    );
     apiRequest("/api/v1/dashboard")
       .then(setDashboard)
       .catch((requestError) => setError(requestError.message))
@@ -29,7 +38,7 @@ export default function DashboardPage() {
   const recentAssessments = dashboard?.recentAssessments || [];
   return (
     <Workspace
-      title={`Good morning, ${firstName}`}
+      title={`${greeting}, ${firstName}`}
       subtitle={
         stats
           ? `${stats.classCount} class${stats.classCount === 1 ? "" : "es"} in your workspace`

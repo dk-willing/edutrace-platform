@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { useState } from "react";
 import { apiRequest } from "../lib/api";
+import { LoadingButton } from "../components/LoadingButton";
 
 export default function ForgotPasswordPage() {
   const [email, setEmail] = useState("");
@@ -67,13 +68,14 @@ export default function ForgotPasswordPage() {
                 onChange={(event) => setEmail(event.target.value)}
               />
             </div>
-            <button
+            <LoadingButton
               className="button button-primary"
               disabled={busy}
+              loading={busy}
               type="submit"
             >
               {busy ? "Sending..." : "Send reset instructions"}
-            </button>
+            </LoadingButton>
           </form>
           <p className="form-foot">
             <Link href="/login">Back to sign in</Link>

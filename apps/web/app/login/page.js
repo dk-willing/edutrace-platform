@@ -4,21 +4,22 @@ import Link from "next/link";
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { apiRequest, setAccessToken, setCurrentTeacher } from "../lib/api";
+import { LoadingButton } from "../components/LoadingButton";
 
 export default function LoginPage() {
   const router = useRouter();
   const [error, setError] = useState("");
   const [busy, setBusy] = useState(false);
+  const [form, setForm] = useState({ email: "", password: "" });
 
   async function submit(event) {
     event.preventDefault();
     setError("");
     setBusy(true);
-    const form = new FormData(event.currentTarget);
     try {
       const result = await apiRequest("/api/v1/auth/login", {
         method: "POST",
-        body: { email: form.get("email"), password: form.get("password") },
+        body: form,
       });
       setAccessToken(result.accessToken);
       setCurrentTeacher(result.teacher);
@@ -62,7 +63,7 @@ export default function LoginPage() {
               {error}
             </div>
           )}
-          <form className="form" onSubmit={submit}>
+          <form className="form" onSubmit={submit} autoComplete="off">
             <div className="field">
               <label htmlFor="email">Email address</label>
               <input
@@ -70,6 +71,11 @@ export default function LoginPage() {
                 name="email"
                 required
                 type="email"
+                autoComplete="off"
+                value={form.email}
+                onChange={(event) =>
+                  setForm({ ...form, email: event.target.value })
+                }
                 placeholder="you@school.edu.gh"
               />
             </div>
@@ -81,16 +87,22 @@ export default function LoginPage() {
                 required
                 minLength={12}
                 type="password"
+                autoComplete="new-password"
+                value={form.password}
+                onChange={(event) =>
+                  setForm({ ...form, password: event.target.value })
+                }
                 placeholder="Your password"
               />
             </div>
-            <button
+            <LoadingButton
               className="button button-primary"
               disabled={busy}
+              loading={busy}
               type="submit"
             >
               {busy ? "Signing in..." : "Sign in"}
-            </button>
+            </LoadingButton>
           </form>
           <p className="form-foot">
             <Link href="/forgot-password">Forgot your password?</Link>
