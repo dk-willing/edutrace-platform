@@ -11,6 +11,10 @@ function detailLabel(item) {
   return item?.label || item?.feature || String(item);
 }
 
+function reviewDecisionLabel(decision) {
+  return decision === "CONFIRM" ? "Accepted" : "Declined";
+}
+
 export default function StudentProfilePage() {
   const { studentId } = useParams();
   const router = useRouter();
@@ -24,6 +28,7 @@ export default function StudentProfilePage() {
   const [error, setError] = useState("");
   const [message, setMessage] = useState("");
   const [reviewing, setReviewing] = useState(false);
+  const [reviewNote, setReviewNote] = useState("");
 
   useEffect(() => {
     if (!studentId) return;
@@ -103,13 +108,19 @@ export default function StudentProfilePage() {
     try {
       const result = await apiRequest(
         `/api/v1/students/${studentId}/assessment/review`,
-        { method: "POST", body: { decision } },
+        {
+          method: "POST",
+          body: { decision, note: reviewNote.trim() || null },
+        },
       );
       setAssessment((current) => ({
         ...current,
         reviewOutcome: result.reviewOutcome,
       }));
-      setMessage(`Assessment marked ${decision.toLowerCase()}.`);
+      setMessage(
+        `Prediction ${decision === "CONFIRM" ? "accepted" : "declined"}.`,
+      );
+      setReviewNote("");
     } catch (requestError) {
       setError(requestError.message);
     } finally {
@@ -295,31 +306,44 @@ export default function StudentProfilePage() {
                   </div>
                 )}
               </div>
-              <p>
-                <strong>
-                  {assessment.reviewOutcome
-                    ? `Reviewed: ${assessment.reviewOutcome.decision}`
-                    : "Waiting for teacher review"}
-                </strong>
-              </p>
-              <div className="button-row">
-                <LoadingButton
-                  className="button button-primary"
-                  disabled={reviewing}
-                  loading={reviewing}
-                  onClick={() => review("CONFIRM")}
-                  type="button"
-                >
-                  Confirm and approve
-                </LoadingButton>
-                <button
-                  className="button button-outline"
-                  disabled={reviewing}
-                  onClick={() => review("DEFER")}
-                  type="button"
-                >
-                  Defer review
-                </button>
+              <div className="teacher-review">
+                <div className="panel-head">
+                  <h3>Teacher review</h3>
+                  <span className="td-muted">
+                    {assessment.reviewOutcome
+                      ? `Reviewed: ${reviewDecisionLabel(assessment.reviewOutcome.decision)}`
+                      : "Action required"}
+                  </span>
+                </div>
+                <label htmlFor="review-note">Review note</label>
+                <textarea
+                  id="review-note"
+                  value={reviewNote}
+                  onChange={(event) => setReviewNote(event.target.value)}
+                  placeholder="Record the context or action agreed with the student."
+                  rows={3}
+                  maxLength={1000}
+                />
+                <div className="button-row">
+                  <LoadingButton
+                    className="button button-primary"
+                    disabled={reviewing}
+                    loading={reviewing}
+                    onClick={() => review("CONFIRM")}
+                    type="button"
+                  >
+                    Accept prediction
+                  </LoadingButton>
+                  <LoadingButton
+                    className="button button-outline"
+                    disabled={reviewing}
+                    loading={reviewing}
+                    onClick={() => review("DISMISS")}
+                    type="button"
+                  >
+                    Decline prediction
+                  </LoadingButton>
+                </div>
               </div>
             </>
           ) : (

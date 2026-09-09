@@ -905,6 +905,42 @@ td {
 .review-details li + li {
   margin-top: 5px;
 }
+.teacher-review {
+  background: #fbfcf8;
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  margin-top: 22px;
+  padding: 16px;
+}
+.teacher-review .panel-head {
+  margin-bottom: 14px;
+}
+.teacher-review h3 {
+  font-size: 15px;
+}
+.teacher-review label {
+  color: var(--muted);
+  display: block;
+  font-size: 12px;
+  font-weight: 700;
+  margin-bottom: 7px;
+}
+.teacher-review textarea {
+  border: 1px solid var(--line);
+  border-radius: 5px;
+  color: var(--ink);
+  display: block;
+  font: inherit;
+  font-size: 13px;
+  line-height: 1.5;
+  padding: 10px;
+  resize: vertical;
+  width: 100%;
+}
+.teacher-review textarea:focus {
+  border-color: var(--teal);
+  outline: 2px solid rgba(8, 127, 115, 0.14);
+}
 .badge {
   border-radius: 12px;
   display: inline-block;
