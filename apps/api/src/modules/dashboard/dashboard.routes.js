@@ -35,6 +35,7 @@ router.get(
       analysisReportCount,
       riskGroups,
       reviewCount,
+      acceptedReviewCount,
       interventionCount,
       recentAssessments,
       latestReport,
@@ -76,6 +77,15 @@ router.get(
             : { id: "__no_reviews__" }),
         },
       }),
+      prisma.riskAssessment.count({
+        where: {
+          schoolId: req.auth.schoolId,
+          reviewOutcome: { decision: "CONFIRM" },
+          ...(classIds.length
+            ? { student: { classId: { in: classIds } } }
+            : { id: "__no_accepted_reviews__" }),
+        },
+      }),
       prisma.intervention.count({
         where: {
           schoolId: req.auth.schoolId,
@@ -94,9 +104,22 @@ router.get(
         },
         orderBy: { scoredAt: "desc" },
         take: 8,
-        include: {
-          student: { include: { identity: true, class: true } },
+        select: {
+          id: true,
+          risk: true,
+          tier: true,
+          scoredAt: true,
+          reviewViewedAt: true,
+          student: {
+            select: {
+              studentKey: true,
+              externalId: true,
+              identity: true,
+              class: true,
+            },
+          },
           modelRegistration: { select: { modelVersion: true } },
+          reviewOutcome: { select: { decision: true, reviewedAt: true } },
         },
       }),
       prisma.analysisReport.findFirst({
@@ -116,6 +139,7 @@ router.get(
           rowsScored: true,
           highCount: true,
           tierCounts: true,
+          results: true,
           createdAt: true,
         },
       }),
@@ -132,6 +156,7 @@ router.get(
         analysisReportCount,
         classCount: classes.length,
         awaitingReview: reviewCount,
+        acceptedReviewCount,
         openInterventions: interventionCount,
         riskDistribution,
       },

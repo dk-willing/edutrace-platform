@@ -135,7 +135,7 @@ export async function scoreClass(
   if (generatedById && scored > 0) {
     const assessments = await prisma.riskAssessment.findMany({
       where: { schoolId, student: { classId }, modelRegistrationId: model.id },
-      include: { student: true },
+      include: { student: { include: { identity: true } } },
       orderBy: { risk: "desc" },
     });
     const report = await createAnalysisReport({
@@ -173,11 +173,19 @@ export async function scoreClass(
       }
     }
     if (urgentCount) {
+      const highRiskStudents = assessments
+        .filter((assessment) => assessment.tier === "HIGH")
+        .map(
+          (assessment) =>
+            assessment.student.identity?.studentName ||
+            assessment.student.studentKey,
+        );
       await publishNotification(schoolId, {
         type: "URGENT_SUPPORT",
         teacherId: generatedById,
         urgentCount,
-        message: "Urgent-support students need review today.",
+        highRiskStudents,
+        message: `Urgent-support students need review today: ${highRiskStudents.join(", ")}.`,
         createdAt: new Date().toISOString(),
       });
     }

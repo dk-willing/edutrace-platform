@@ -92,24 +92,50 @@ export default function ReportsPage() {
               support. They are signals for human review, not conclusions about
               a student.
             </p>
-            {report.latestAnalysis && (
-              <div className="notice" role="status">
-                Latest run:{" "}
-                {report.latestAnalysis.filename || report.latestAnalysis.source}{" "}
-                · {report.latestAnalysis.rowsScored}/
-                {report.latestAnalysis.totalRows} rows scored on{" "}
-                {new Date(report.latestAnalysis.createdAt).toLocaleString()}.
-              </div>
-            )}
-
             {report.assessments === 0 ? (
               <div className="empty-state">
-                <h2>No model report available</h2>
+                <h2>Risk analysis results</h2>
                 <p>
-                  There are no recorded model assessments for your classes. CSV
-                  import stores observations first; scoring remains unavailable
-                  until an approved production model is active.
+                  The latest analysis is shown below. Each signal is waiting for
+                  teacher review before any support action is taken.
                 </p>
+                {report.latestAnalysis?.results?.length ? (
+                  <div className="table-wrap">
+                    <table>
+                      <thead>
+                        <tr>
+                          <th>Student</th>
+                          <th>Risk</th>
+                          <th>Signal</th>
+                          <th>Review</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {report.latestAnalysis.results.map((item, index) => (
+                          <tr key={item.student_key || index}>
+                            <td>{item.student_name || item.student_key}</td>
+                            <td>
+                              {(Number(item.risk || 0) * 100).toFixed(1)}%
+                            </td>
+                            <td>
+                              <RiskLabel tier={item.tier} />
+                            </td>
+                            <td>
+                              <span className="badge badge-watch">
+                                Waiting for review
+                              </span>
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                ) : (
+                  <p>
+                    Run an approved model analysis to produce student-level
+                    results.
+                  </p>
+                )}
               </div>
             ) : (
               <div className="risk-list">
@@ -135,6 +161,37 @@ export default function ReportsPage() {
                 ))}
               </div>
             )}
+            {report.latestAnalysis?.results?.length > 0 &&
+              report.assessments > 0 && (
+                <div className="table-wrap" style={{ marginTop: "24px" }}>
+                  <table>
+                    <thead>
+                      <tr>
+                        <th>Student</th>
+                        <th>Risk</th>
+                        <th>Signal</th>
+                        <th>Review</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {report.latestAnalysis.results.map((item, index) => (
+                        <tr key={item.student_key || index}>
+                          <td>{item.student_name || item.student_key}</td>
+                          <td>{(Number(item.risk || 0) * 100).toFixed(1)}%</td>
+                          <td>
+                            <RiskLabel tier={item.tier} />
+                          </td>
+                          <td>
+                            <span className="badge badge-watch">
+                              Waiting for review
+                            </span>
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              )}
           </section>
           <section className="panel page-card">
             <div className="panel-head">
@@ -196,5 +253,13 @@ export default function ReportsPage() {
         </>
       )}
     </Workspace>
+  );
+}
+
+function RiskLabel({ tier }) {
+  return (
+    <span className={`badge badge-${String(tier).toLowerCase()}`}>
+      {riskTierLabel(tier)}
+    </span>
   );
 }

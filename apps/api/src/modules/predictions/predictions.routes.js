@@ -190,11 +190,32 @@ router.post(
       }
     }
     if (urgentCount) {
+      const highRiskKeys = worklist
+        .filter((item) => item.tier === "HIGH")
+        .map((item) => item.student_key);
+      const highRiskRecords = await prisma.student.findMany({
+        where: {
+          schoolId: req.auth.schoolId,
+          studentKey: { in: highRiskKeys },
+        },
+        select: {
+          studentKey: true,
+          identity: { select: { studentName: true } },
+        },
+      });
+      const names = new Map(
+        highRiskRecords.map((student) => [
+          student.studentKey,
+          student.identity?.studentName || student.studentKey,
+        ]),
+      );
+      const highRiskStudents = highRiskKeys.map((key) => names.get(key) || key);
       await publishNotification(req.auth.schoolId, {
         type: "URGENT_SUPPORT",
         teacherId: req.auth.teacherId,
         urgentCount,
-        message: "Urgent-support students need review today.",
+        highRiskStudents,
+        message: `Urgent-support students need review today: ${highRiskStudents.join(", ")}.`,
         createdAt: new Date().toISOString(),
       });
     }

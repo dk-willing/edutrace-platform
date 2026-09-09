@@ -19,6 +19,7 @@ export default function StudentProfilePage() {
   const [deleting, setDeleting] = useState(false);
   const [error, setError] = useState("");
   const [message, setMessage] = useState("");
+  const [reviewing, setReviewing] = useState(false);
 
   useEffect(() => {
     if (!studentId) return;
@@ -88,6 +89,27 @@ export default function StudentProfilePage() {
     } catch (requestError) {
       setError(requestError.message);
       setDeleting(false);
+    }
+  }
+
+  async function review(decision) {
+    setReviewing(true);
+    setError("");
+    setMessage("");
+    try {
+      const result = await apiRequest(
+        `/api/v1/students/${studentId}/assessment/review`,
+        { method: "POST", body: { decision } },
+      );
+      setAssessment((current) => ({
+        ...current,
+        reviewOutcome: result.reviewOutcome,
+      }));
+      setMessage(`Assessment marked ${decision.toLowerCase()}.`);
+    } catch (requestError) {
+      setError(requestError.message);
+    } finally {
+      setReviewing(false);
     }
   }
 
@@ -224,6 +246,32 @@ export default function StudentProfilePage() {
                 Model {assessment.modelRegistration?.modelVersion || "unknown"}{" "}
                 · {new Date(assessment.scoredAt).toLocaleString()}
               </p>
+              <p>
+                <strong>
+                  {assessment.reviewOutcome
+                    ? `Reviewed: ${assessment.reviewOutcome.decision}`
+                    : "Waiting for teacher review"}
+                </strong>
+              </p>
+              <div className="button-row">
+                <LoadingButton
+                  className="button button-primary"
+                  disabled={reviewing}
+                  loading={reviewing}
+                  onClick={() => review("CONFIRM")}
+                  type="button"
+                >
+                  Confirm and approve
+                </LoadingButton>
+                <button
+                  className="button button-outline"
+                  disabled={reviewing}
+                  onClick={() => review("DEFER")}
+                  type="button"
+                >
+                  Defer review
+                </button>
+              </div>
             </>
           ) : (
             <p className="section-sub">

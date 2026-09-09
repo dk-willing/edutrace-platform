@@ -26,6 +26,10 @@ const studentUpdateSchema = z.object({
   gradeLevel: z.enum(["JHS1", "JHS2", "JHS3"]).optional(),
   classId: z.string().trim().min(1).nullable().optional(),
 });
+const reviewSchema = z.object({
+  decision: z.enum(["CONFIRM", "DISMISS", "ESCALATE", "DEFER"]),
+  note: z.string().trim().max(1000).nullable().optional(),
+});
 
 router.use(requireAuth);
 
@@ -58,10 +62,56 @@ router.get(
       prisma.riskAssessment.findFirst({
         where: { studentId: student.id },
         orderBy: { scoredAt: "desc" },
-        include: { modelRegistration: { select: { modelVersion: true } } },
+        include: {
+          modelRegistration: { select: { modelVersion: true } },
+          reviewOutcome: true,
+        },
       }),
     ]);
+    if (latestAssessment && !latestAssessment.reviewViewedAt) {
+      latestAssessment.reviewViewedAt = new Date();
+      await prisma.riskAssessment.update({
+        where: { id: latestAssessment.id },
+        data: { reviewViewedAt: latestAssessment.reviewViewedAt },
+      });
+    }
     res.json({ success: true, student, latestObservation, latestAssessment });
+  }),
+);
+
+router.post(
+  "/:studentId/assessment/review",
+  asyncHandler(async (req, res) => {
+    const student = await getManagedStudent(req, req.params.studentId);
+    const input = reviewSchema.parse(req.body);
+    const assessment = await prisma.riskAssessment.findFirst({
+      where: { studentId: student.id },
+      orderBy: { scoredAt: "desc" },
+    });
+    if (!assessment)
+      throw new NotFoundError("This student has no risk assessment to review.");
+    const reviewOutcome = await prisma.reviewOutcome.upsert({
+      where: { riskAssessmentId: assessment.id },
+      create: {
+        riskAssessmentId: assessment.id,
+        reviewerId: req.auth.teacherId,
+        reviewerRole: req.auth.role,
+        decision: input.decision,
+        modelTier: assessment.tier,
+        finalTier: assessment.tier,
+        note: input.note || null,
+      },
+      update: {
+        reviewerId: req.auth.teacherId,
+        reviewerRole: req.auth.role,
+        decision: input.decision,
+        modelTier: assessment.tier,
+        finalTier: assessment.tier,
+        note: input.note || null,
+        reviewedAt: new Date(),
+      },
+    });
+    res.json({ success: true, reviewOutcome });
   }),
 );
 

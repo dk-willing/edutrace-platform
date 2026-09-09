@@ -527,8 +527,9 @@ model RiskAssessment {
   requiresHumanReview Boolean  @default(true)
   isDemo              Boolean  @default(false)
 
-  scoredAt  DateTime @default(now())
-  latencyMs Float?
+  scoredAt       DateTime  @default(now())
+  latencyMs      Float?
+  reviewViewedAt DateTime?
 
   reviewOutcome ReviewOutcome?
 

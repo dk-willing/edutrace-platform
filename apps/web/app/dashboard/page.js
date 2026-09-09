@@ -24,10 +24,27 @@ export default function DashboardPage() {
           ? "Good afternoon"
           : "Good evening",
     );
-    apiRequest("/api/v1/dashboard")
-      .then(setDashboard)
-      .catch((requestError) => setError(requestError.message))
-      .finally(() => setLoading(false));
+    let active = true;
+    const loadDashboard = () =>
+      apiRequest("/api/v1/dashboard")
+        .then((result) => {
+          if (active) {
+            setDashboard(result);
+            setError("");
+          }
+        })
+        .catch((requestError) => {
+          if (active) setError(requestError.message);
+        })
+        .finally(() => {
+          if (active) setLoading(false);
+        });
+    loadDashboard();
+    const refreshTimer = window.setInterval(loadDashboard, 15000);
+    return () => {
+      active = false;
+      window.clearInterval(refreshTimer);
+    };
   }, []);
   const firstName = teacher?.firstName || "there";
   const stats = dashboard?.stats;
@@ -36,6 +53,7 @@ export default function DashboardPage() {
     0,
   );
   const recentAssessments = dashboard?.recentAssessments || [];
+  const analysisResults = dashboard?.latestReport?.results || [];
   return (
     <Workspace
       title={`${greeting}, ${firstName}`}
@@ -91,6 +109,13 @@ export default function DashboardPage() {
               </div>
               <div className="stat-foot">Saved scoring runs</div>
             </div>
+            <div className="stat">
+              <div className="stat-label">Accepted follow-ups</div>
+              <div className="stat-value">
+                {stats?.acceptedReviewCount || 0}
+              </div>
+              <div className="stat-foot">Confirmed by a teacher</div>
+            </div>
           </div>
           {stats?.classCount === 0 && (
             <div className="notice">
@@ -109,13 +134,41 @@ export default function DashboardPage() {
                   View students ↗
                 </Link>
               </div>
-              {totalRisk === 0 ? (
+              {totalRisk === 0 && analysisResults.length === 0 ? (
                 <div className="empty-state compact">
                   <h3>No assessments yet</h3>
                   <p>
-                    Risk distribution will appear here after approved model
-                    results are recorded.
+                    Risk analysis results will appear here after a scoring run.
                   </p>
+                </div>
+              ) : totalRisk === 0 ? (
+                <div className="table-wrap">
+                  <table>
+                    <thead>
+                      <tr>
+                        <th>Student</th>
+                        <th>Risk</th>
+                        <th>Signal</th>
+                        <th>Review</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {analysisResults.slice(0, 8).map((item, index) => (
+                        <tr key={item.student_key || index}>
+                          <td>{item.student_name || item.student_key}</td>
+                          <td>{(Number(item.risk || 0) * 100).toFixed(1)}%</td>
+                          <td>
+                            <RiskBadge>{item.tier}</RiskBadge>
+                          </td>
+                          <td>
+                            <span className="badge badge-watch">
+                              Waiting for review
+                            </span>
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
                 </div>
               ) : (
                 <div className="risk-list">
@@ -145,6 +198,7 @@ export default function DashboardPage() {
                 </Link>
               </div>
               {(stats?.awaitingReview || 0) === 0 &&
+              (stats?.acceptedReviewCount || 0) === 0 &&
               (stats?.openInterventions || 0) === 0 ? (
                 <div className="empty-state compact">
                   <h3>Nothing requiring attention</h3>
@@ -154,11 +208,20 @@ export default function DashboardPage() {
                 <div className="task">
                   <span className="task-dot" />
                   <div>
-                    <p>
-                      {stats.awaitingReview} assessment
-                      {stats.awaitingReview === 1 ? "" : "s"} awaiting review
-                    </p>
-                    <small>Open the student list to review</small>
+                    {stats.awaitingReview > 0 && (
+                      <p>
+                        {stats.awaitingReview} assessment
+                        {stats.awaitingReview === 1 ? "" : "s"} awaiting review
+                      </p>
+                    )}
+                    {stats.acceptedReviewCount > 0 && (
+                      <p>
+                        {stats.acceptedReviewCount} assessment
+                        {stats.acceptedReviewCount === 1 ? "" : "s"} accepted
+                        for follow-up
+                      </p>
+                    )}
+                    <small>Open the student list to review or follow up</small>
                   </div>
                 </div>
               )}
@@ -213,12 +276,20 @@ export default function DashboardPage() {
                           {assessment.modelRegistration.modelVersion}
                         </td>
                         <td>
-                          <Link
-                            className="panel-link"
-                            href={`/students/${assessment.student.id}`}
-                          >
-                            Review ↗
-                          </Link>
+                          {assessment.reviewOutcome ? (
+                            <span className="badge badge-low">
+                              {assessment.reviewOutcome.decision}
+                            </span>
+                          ) : (
+                            <Link
+                              className="panel-link"
+                              href={`/students/${assessment.student.id}`}
+                            >
+                              {assessment.reviewViewedAt
+                                ? "Opened, awaiting decision ↗"
+                                : "Waiting to be opened ↗"}
+                            </Link>
+                          )}
                         </td>
                       </tr>
                     ))}
@@ -236,11 +307,7 @@ export default function DashboardPage() {
                 </Link>
               </div>
               <p className="section-sub">
-                {dashboard.latestReport.filename ||
-                  dashboard.latestReport.source}{" "}
-                · {dashboard.latestReport.rowsScored}/
-                {dashboard.latestReport.totalRows} rows scored ·{" "}
-                {new Date(dashboard.latestReport.createdAt).toLocaleString()}
+                Latest student risk analysis results
               </p>
               <div className="risk-list">
                 {tiers.map((tier) => (
@@ -252,6 +319,36 @@ export default function DashboardPage() {
                   </div>
                 ))}
               </div>
+              {dashboard.latestReport.results?.length > 0 && (
+                <div className="table-wrap" style={{ marginTop: "20px" }}>
+                  <table>
+                    <thead>
+                      <tr>
+                        <th>Student</th>
+                        <th>Risk</th>
+                        <th>Signal</th>
+                        <th>Review</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {analysisResults.slice(0, 8).map((item, index) => (
+                        <tr key={item.student_key || index}>
+                          <td>{item.student_name || item.student_key}</td>
+                          <td>{(Number(item.risk || 0) * 100).toFixed(1)}%</td>
+                          <td>
+                            <RiskBadge>{item.tier}</RiskBadge>
+                          </td>
+                          <td>
+                            <span className="badge badge-watch">
+                              Waiting for review
+                            </span>
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              )}
             </section>
           )}
         </>

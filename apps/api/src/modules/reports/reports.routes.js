@@ -144,6 +144,7 @@ router.get(
           rowsScored: true,
           highCount: true,
           tierCounts: true,
+          results: true,
           createdAt: true,
         },
       }),
