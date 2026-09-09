@@ -277,7 +277,12 @@ function RiskLabel({ tier }) {
 }
 
 function findStudent(item, students) {
-  return students.find((student) => student.studentKey === item.student_key);
+  return students.find(
+    (student) =>
+      student.id === item.studentId ||
+      student.studentKey === item.student_key ||
+      student.externalId === item.student_key,
+  );
 }
 
 function StudentLink({ item, students }) {

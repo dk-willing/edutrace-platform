@@ -149,6 +149,32 @@ router.get(
         },
       }),
     ]);
+    if (latestAnalysis?.results?.length && classIds.length) {
+      const resultKeys = latestAnalysis.results
+        .map((item) => item.student_key)
+        .filter(Boolean);
+      const reportStudents = await prisma.student.findMany({
+        where: {
+          schoolId: req.auth.schoolId,
+          classId: { in: classIds },
+          OR: [
+            { studentKey: { in: resultKeys } },
+            { externalId: { in: resultKeys } },
+          ],
+        },
+        select: { id: true, studentKey: true, externalId: true },
+      });
+      const studentsByReportKey = new Map(
+        reportStudents.flatMap((student) => [
+          [student.studentKey, student.id],
+          ...(student.externalId ? [[student.externalId, student.id]] : []),
+        ]),
+      );
+      latestAnalysis.results = latestAnalysis.results.map((item) => ({
+        ...item,
+        studentId: studentsByReportKey.get(item.student_key) || null,
+      }));
+    }
     res.json({
       success: true,
       report: {
