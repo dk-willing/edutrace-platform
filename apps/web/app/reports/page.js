@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { useEffect, useState } from "react";
 import { Workspace, riskTierLabel } from "../dashboard/Workspace";
 import { apiRequest, downloadFile } from "../lib/api";
@@ -9,19 +10,24 @@ import { LoadingButton } from "../components/LoadingButton";
 export default function ReportsPage() {
   const [report, setReport] = useState(null);
   const [analysisReports, setAnalysisReports] = useState([]);
+  const [students, setStudents] = useState([]);
   const [error, setError] = useState("");
 
   useEffect(() => {
     Promise.allSettled([
       apiRequest("/api/v1/reports/school"),
       apiRequest("/api/v1/reports/analysis"),
-    ]).then(([result, history]) => {
+      apiRequest("/api/v1/students?pageSize=100"),
+    ]).then(([result, history, studentsResult]) => {
       if (result.status === "fulfilled") setReport(result.value.report);
       else setError(result.reason.message);
       if (history.status === "fulfilled") {
         setAnalysisReports(history.value.reports || []);
       } else if (result.status === "fulfilled") {
         setError(history.reason.message);
+      }
+      if (studentsResult.status === "fulfilled") {
+        setStudents(studentsResult.value.students || []);
       }
     });
   }, []);
@@ -113,7 +119,9 @@ export default function ReportsPage() {
                       <tbody>
                         {report.latestAnalysis.results.map((item, index) => (
                           <tr key={item.student_key || index}>
-                            <td>{item.student_name || item.student_key}</td>
+                            <td>
+                              <StudentLink item={item} students={students} />
+                            </td>
                             <td>
                               {(Number(item.risk || 0) * 100).toFixed(1)}%
                             </td>
@@ -121,9 +129,10 @@ export default function ReportsPage() {
                               <RiskLabel tier={item.tier} />
                             </td>
                             <td>
-                              <span className="badge badge-watch">
-                                Waiting for review
-                              </span>
+                              <StudentReviewLink
+                                item={item}
+                                students={students}
+                              />
                             </td>
                           </tr>
                         ))}
@@ -176,15 +185,18 @@ export default function ReportsPage() {
                     <tbody>
                       {report.latestAnalysis.results.map((item, index) => (
                         <tr key={item.student_key || index}>
-                          <td>{item.student_name || item.student_key}</td>
+                          <td>
+                            <StudentLink item={item} students={students} />
+                          </td>
                           <td>{(Number(item.risk || 0) * 100).toFixed(1)}%</td>
                           <td>
                             <RiskLabel tier={item.tier} />
                           </td>
                           <td>
-                            <span className="badge badge-watch">
-                              Waiting for review
-                            </span>
+                            <StudentReviewLink
+                              item={item}
+                              students={students}
+                            />
                           </td>
                         </tr>
                       ))}
@@ -261,5 +273,32 @@ function RiskLabel({ tier }) {
     <span className={`badge badge-${String(tier).toLowerCase()}`}>
       {riskTierLabel(tier)}
     </span>
+  );
+}
+
+function findStudent(item, students) {
+  return students.find((student) => student.studentKey === item.student_key);
+}
+
+function StudentLink({ item, students }) {
+  const student = findStudent(item, students);
+  const label = item.student_name || item.student_key;
+  return student ? (
+    <Link className="panel-link" href={`/students/${student.id}`}>
+      {label}
+    </Link>
+  ) : (
+    label
+  );
+}
+
+function StudentReviewLink({ item, students }) {
+  const student = findStudent(item, students);
+  return student ? (
+    <Link className="panel-link" href={`/students/${student.id}`}>
+      Review student
+    </Link>
+  ) : (
+    <span className="badge badge-watch">Student not found</span>
   );
 }

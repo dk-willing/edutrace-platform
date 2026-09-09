@@ -7,6 +7,10 @@ import { Workspace, RiskBadge } from "../../dashboard/Workspace";
 import { apiRequest } from "../../lib/api";
 import { LoadingButton } from "../../components/LoadingButton";
 
+function detailLabel(item) {
+  return item?.label || item?.feature || String(item);
+}
+
 export default function StudentProfilePage() {
   const { studentId } = useParams();
   const router = useRouter();
@@ -242,10 +246,55 @@ export default function StudentProfilePage() {
               <p className="section-sub">
                 Latest model assessment. Human review is required before action.
               </p>
+              {assessment.narrative && (
+                <p className="review-narrative">{assessment.narrative}</p>
+              )}
               <p className="form-foot">
                 Model {assessment.modelRegistration?.modelVersion || "unknown"}{" "}
                 · {new Date(assessment.scoredAt).toLocaleString()}
               </p>
+              <div className="review-details">
+                <div>
+                  <strong>Contributing factors</strong>
+                  {assessment.drivers?.length ? (
+                    <ul>
+                      {assessment.drivers.map((item) => (
+                        <li key={`${item.feature}-${item.label}`}>
+                          {detailLabel(item)}
+                        </li>
+                      ))}
+                    </ul>
+                  ) : (
+                    <p className="td-muted">None recorded.</p>
+                  )}
+                </div>
+                <div>
+                  <strong>Protective factors</strong>
+                  {assessment.protective?.length ? (
+                    <ul>
+                      {assessment.protective.map((item) => (
+                        <li key={`${item.feature}-${item.label}`}>
+                          {detailLabel(item)}
+                        </li>
+                      ))}
+                    </ul>
+                  ) : (
+                    <p className="td-muted">None recorded.</p>
+                  )}
+                </div>
+                {assessment.recourse?.length > 0 && (
+                  <div>
+                    <strong>Suggested next steps</strong>
+                    <ul>
+                      {assessment.recourse.map((item) => (
+                        <li key={`${item.feature}-${item.label}`}>
+                          {item.note || detailLabel(item)}
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
+                )}
+              </div>
               <p>
                 <strong>
                   {assessment.reviewOutcome

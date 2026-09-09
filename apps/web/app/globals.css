@@ -876,6 +876,35 @@ td {
   color: var(--muted);
   font-size: 12px;
 }
+.review-narrative {
+  background: #f5f7f1;
+  border-left: 3px solid var(--teal);
+  color: var(--muted);
+  font-size: 13px;
+  line-height: 1.6;
+  margin: 18px 0;
+  padding: 12px 14px;
+}
+.review-details {
+  border-top: 1px solid var(--line);
+  display: grid;
+  gap: 16px;
+  margin: 18px 0;
+  padding-top: 18px;
+}
+.review-details strong {
+  font-size: 12px;
+}
+.review-details ul {
+  color: var(--muted);
+  font-size: 12px;
+  line-height: 1.5;
+  margin: 8px 0 0;
+  padding-left: 18px;
+}
+.review-details li + li {
+  margin-top: 5px;
+}
 .badge {
   border-radius: 12px;
   display: inline-block;
