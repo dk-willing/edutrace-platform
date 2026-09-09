@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useEffect, useState } from "react";
-import { useParams, useRouter } from "next/navigation";
+import { useParams, useRouter, useSearchParams } from "next/navigation";
 import { Workspace, RiskBadge } from "../../dashboard/Workspace";
 import { apiRequest } from "../../lib/api";
 import { LoadingButton } from "../../components/LoadingButton";
@@ -17,7 +17,9 @@ function reviewDecisionLabel(decision) {
 
 export default function StudentProfilePage() {
   const { studentId } = useParams();
+  const searchParams = useSearchParams();
   const router = useRouter();
+  const reviewMode = searchParams.get("review") === "1";
   const [student, setStudent] = useState(null);
   const [classes, setClasses] = useState([]);
   const [assessment, setAssessment] = useState(null);
@@ -153,7 +155,7 @@ export default function StudentProfilePage() {
   return (
     <Workspace
       title={student.identity?.studentName || "Student profile"}
-      subtitle={`${student.externalId || student.studentKey.slice(0, 8)} · ${student.class?.name || "Unassigned"}`}
+      subtitle={`${reviewMode ? "Prediction review · " : ""}${student.externalId || student.studentKey.slice(0, 8)} · ${student.class?.name || "Unassigned"}`}
     >
       {error && (
         <div className="notice" role="alert">
@@ -246,7 +248,7 @@ export default function StudentProfilePage() {
         </section>
         <section className="panel">
           <div className="panel-head">
-            <h2>Risk status</h2>
+            <h2>Model prediction</h2>
             {assessment && <RiskBadge>{assessment.tier}</RiskBadge>}
           </div>
           {assessment ? (

@@ -295,8 +295,8 @@ function StudentLink({ item, students }) {
 function StudentReviewLink({ item, students }) {
   const student = findStudent(item, students);
   return student ? (
-    <Link className="panel-link" href={`/students/${student.id}`}>
-      Review student
+    <Link className="panel-link" href={`/students/${student.id}?review=1`}>
+      Open review
     </Link>
   ) : (
     <span className="badge badge-watch">Student not found</span>
