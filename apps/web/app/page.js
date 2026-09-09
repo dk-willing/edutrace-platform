@@ -60,7 +60,9 @@ export default function HomePage() {
                 <div className="card-top">
                   <div>
                     <div className="student-name">Amina Mensah</div>
-                    <div className="student-meta">JHS 2A · Demo record</div>
+                    <div className="student-meta">
+                      JHS 2A · Learner overview
+                    </div>
                   </div>
                   <span className="risk-badge">ELEVATED</span>
                 </div>
@@ -69,7 +71,7 @@ export default function HomePage() {
                   <div className="score-label">
                     estimated attention
                     <br />
-                    signal · demo only
+                    signal · decision support
                   </div>
                 </div>
                 <div className="mini-bars">

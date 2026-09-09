@@ -4,13 +4,13 @@ export default function StudentPage() {
   return (
     <Workspace
       title="Amina Mensah"
-      subtitle="ET-2041 · JHS 2A · fictional demo record"
+      subtitle="ET-2041 · JHS 2A"
       action={<button className="button button-outline">More actions ▾</button>}
     >
       <div className="notice">
-        <strong>Demo record.</strong> This profile is fictional. The signal
-        below is a decision-support prompt, not a diagnosis or prediction of a
-        fixed outcome.
+        <strong>Decision-support signal.</strong> Review the context below with
+        the learner and relevant school staff. It is not a diagnosis or
+        prediction of a fixed outcome.
       </div>
       <div className="stat-grid">
         <div className="stat">
@@ -23,7 +23,7 @@ export default function StudentPage() {
         <div className="stat">
           <div className="stat-label">Model output</div>
           <div className="stat-value">0.72</div>
-          <div className="stat-foot">Demo model · not approved</div>
+          <div className="stat-foot">Human review required</div>
         </div>
         <div className="stat">
           <div className="stat-label">Attendance trend</div>

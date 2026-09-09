@@ -10,7 +10,7 @@ import {
   getCurrentTeacher,
 } from "../lib/api";
 
-const nav = [
+const teacherNav = [
   ["⌂", "Overview", "/dashboard"],
   ["▦", "Classes", "/classes"],
   ["○", "Students", "/students"],
@@ -20,10 +20,15 @@ const nav = [
 const secondary = [
   ["!", "Notifications", "/notifications"],
   ["⚙", "Settings", "/settings"],
-  ["◆", "Admin", "/admin"],
 ];
 
-export function Workspace({ children, title, subtitle, action }) {
+export function Workspace({
+  children,
+  title,
+  subtitle,
+  action,
+  variant = "default",
+}) {
   const pathname = usePathname();
   const router = useRouter();
   const [teacher, setTeacher] = useState(null);
@@ -44,6 +49,11 @@ export function Workspace({ children, title, subtitle, action }) {
     ? `${teacher.firstName?.[0] || ""}${teacher.lastName?.[0] || ""}`
     : "ET";
   const workspaceName = teacher?.school?.name || "EduTrace administration";
+  const isApprovedTeacher =
+    teacher?.role === "TEACHER" &&
+    teacher?.emailVerified === true &&
+    teacher?.status === "ACTIVE";
+  const visibleNav = isApprovedTeacher ? teacherNav : [];
   async function logout() {
     setLoggingOut(true);
     try {
@@ -64,7 +74,7 @@ export function Workspace({ children, title, subtitle, action }) {
           <span>EduTrace</span>
         </Link>
         <div className="side-label">Workspace</div>
-        {nav.map(([icon, label, href]) => (
+        {visibleNav.map(([icon, label, href]) => (
           <Link
             className={`side-link ${pathname === href ? "active" : ""}`}
             href={href}
@@ -85,11 +95,6 @@ export function Workspace({ children, title, subtitle, action }) {
             <span>{label}</span>
           </Link>
         ))}
-        <div className="sidebar-bottom">
-          Demo environment
-          <br />
-          All learner records are fictional.
-        </div>
       </aside>
       <section className="main">
         <header className="topbar">
@@ -110,7 +115,9 @@ export function Workspace({ children, title, subtitle, action }) {
             </button>
           </div>
         </header>
-        <main className="content">
+        <main
+          className={`content ${variant === "dashboard" ? "dashboard-content" : ""}`}
+        >
           <div className="content-head">
             <div>
               <h1>{title}</h1>

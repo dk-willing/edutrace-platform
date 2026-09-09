@@ -35,6 +35,7 @@ export default function DashboardPage() {
           ? `${stats.classCount} class${stats.classCount === 1 ? "" : "es"} in your workspace`
           : "Your school workspace"
       }
+      variant="dashboard"
     >
       {error && (
         <div className="notice" role="alert">

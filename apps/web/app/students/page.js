@@ -24,8 +24,21 @@ export default function StudentsPage() {
         const params = new URLSearchParams();
         if (search) params.set("search", search);
         if (classId) params.set("classId", classId);
-        const result = await apiRequest(`/api/v1/students?${params}`);
-        setStudents(result.students || []);
+        params.set("pageSize", "100");
+        const firstPage = await apiRequest(`/api/v1/students?${params}`);
+        const remainingPages = Array.from(
+          { length: Math.max(0, (firstPage.pagination?.pages || 1) - 1) },
+          (_, index) => index + 2,
+        );
+        const rest = await Promise.all(
+          remainingPages.map((page) =>
+            apiRequest(`/api/v1/students?${params}&page=${page}`),
+          ),
+        );
+        setStudents([
+          ...(firstPage.students || []),
+          ...rest.flatMap((page) => page.students || []),
+        ]);
         setError("");
       } catch (requestError) {
         setError(requestError.message);

@@ -31,7 +31,7 @@ const content = {
       ],
       [
         "Service limitations",
-        "Model availability, accuracy, SMS delivery, and generated recommendations may vary. Production scoring requires an explicitly approved model. Demo records are fictional and must never be treated as evidence about real learners.",
+        "Model availability, accuracy, SMS delivery, and generated recommendations may vary. Production scoring requires an explicitly approved model. Model outputs are decision-support signals and must be reviewed by authorised school staff.",
       ],
     ],
   },

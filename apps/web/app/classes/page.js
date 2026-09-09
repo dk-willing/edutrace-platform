@@ -161,7 +161,7 @@ export default function ClassesPage() {
               </p>
               <Link
                 className="button button-outline"
-                href={`/students?classId=${classItem.id}`}
+                href={`/classes/${classItem.id}`}
               >
                 Open class
               </Link>

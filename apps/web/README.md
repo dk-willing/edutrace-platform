@@ -7,5 +7,5 @@ notifications, and settings.
 
 The auth forms call the Node API at `NEXT_PUBLIC_API_URL` and keep the access
 token in memory. Refresh sessions remain in the API's HttpOnly cookie. The
-workspace currently uses clearly labelled fictional data until the matching
-school, student, import, and reporting endpoints are implemented.
+workspace uses the school, student, import, and reporting endpoints provided by
+the Node API.
