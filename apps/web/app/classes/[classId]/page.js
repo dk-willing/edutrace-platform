@@ -11,7 +11,7 @@ export default function ClassDetailsPage() {
   const { classId } = useParams();
   const [classRecord, setClassRecord] = useState(null);
   const [students, setStudents] = useState([]);
-  const [file, setFile] = useState(null);
+  const [files, setFiles] = useState([]);
   const [preview, setPreview] = useState(null);
   const [loading, setLoading] = useState(true);
   const [busy, setBusy] = useState(false);
@@ -36,15 +36,15 @@ export default function ClassDetailsPage() {
 
   async function validate(event) {
     event.preventDefault();
-    if (!file) {
-      setError("Choose a CSV file before uploading.");
+    if (!files.length) {
+      setError("Choose at least one CSV file before uploading.");
       return;
     }
     setBusy(true);
     setError("");
     setMessage("");
     const body = new FormData();
-    body.append("file", file);
+    for (const selectedFile of files) body.append("file", selectedFile);
     body.append("classId", classId);
     try {
       const result = await apiRequest("/api/v1/imports", {
@@ -74,7 +74,7 @@ export default function ClassDetailsPage() {
       );
       setMessage(`${result.studentIds.length} students added to this class.`);
       setPreview(null);
-      setFile(null);
+      setFiles([]);
       await loadClass();
     } catch (requestError) {
       setError(requestError.message);
@@ -142,7 +142,10 @@ export default function ClassDetailsPage() {
                   required
                   type="file"
                   accept=".csv,text/csv"
-                  onChange={(event) => setFile(event.target.files?.[0] || null)}
+                  multiple
+                  onChange={(event) =>
+                    setFiles(Array.from(event.target.files || []))
+                  }
                 />
               </div>
               <LoadingButton

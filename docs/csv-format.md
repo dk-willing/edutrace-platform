@@ -25,11 +25,12 @@ Supported roster values are grades `JHS1`-`JHS3`, fee statuses `EXEMPT`,
 Do not include safeguarding disclosures, free-text narratives, or unnecessary
 medical information in the CSV.
 
-The import workflow will validate headers, values, duplicates, and row errors
-before writing students or observations. Re-uploading an existing external ID
-in the selected class updates that student's identity and current week-1
-observation instead of creating a duplicate. Never upload real data into the
-demo environment.
+The import workflow accepts one or more CSV files, up to 10 files per upload,
+and combines them into one validation and commit. It validates headers, values,
+duplicates, and row errors before writing students or observations. Re-uploading
+an existing external ID in the selected class updates that student's identity
+and current week-1 observation instead of creating a duplicate. Never upload
+real data into the demo environment.
 
 ## Batch scoring from the teacher workspace
 

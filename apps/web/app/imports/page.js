@@ -9,7 +9,7 @@ export default function ImportsPage() {
   const [classes, setClasses] = useState([]);
   const [uploads, setUploads] = useState([]);
   const [classId, setClassId] = useState("");
-  const [file, setFile] = useState(null);
+  const [files, setFiles] = useState([]);
   const [preview, setPreview] = useState(null);
   const [busy, setBusy] = useState(false);
   const [loadingClasses, setLoadingClasses] = useState(true);
@@ -45,7 +45,7 @@ export default function ImportsPage() {
   }, []);
   async function validate(event) {
     event.preventDefault();
-    if (!file || !classId) {
+    if (!files.length || !classId) {
       setError("Choose a class and CSV file before uploading.");
       return;
     }
@@ -53,7 +53,7 @@ export default function ImportsPage() {
     setError("");
     setMessage("");
     const body = new FormData();
-    body.append("file", file);
+    for (const selectedFile of files) body.append("file", selectedFile);
     body.append("classId", classId);
     try {
       const result = await apiRequest("/api/v1/imports", {
@@ -83,7 +83,7 @@ export default function ImportsPage() {
         `${result.studentIds.length} students imported successfully. Risk analysis can be retried from the class dashboard.`,
       );
       setPreview(null);
-      setFile(null);
+      setFiles([]);
       await load();
     } catch (requestError) {
       setError(requestError.message);
@@ -191,7 +191,10 @@ export default function ImportsPage() {
               required
               type="file"
               accept=".csv,text/csv"
-              onChange={(event) => setFile(event.target.files?.[0] || null)}
+              multiple
+              onChange={(event) =>
+                setFiles(Array.from(event.target.files || []))
+              }
             />
           </div>
           <LoadingButton
