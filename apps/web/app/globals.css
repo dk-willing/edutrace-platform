@@ -937,6 +937,29 @@ td {
   margin-bottom: 24px;
   padding: 13px 15px;
 }
+.notice[role="alert"],
+.notice[role="status"] {
+  animation: toast-enter 0.24s ease-out;
+  box-shadow: 0 14px 34px rgba(19, 61, 52, 0.18);
+  left: 50%;
+  margin: 0;
+  max-width: min(560px, calc(100vw - 34px));
+  position: fixed;
+  top: 22px;
+  transform: translateX(-50%);
+  width: max-content;
+  z-index: 50;
+}
+@keyframes toast-enter {
+  from {
+    opacity: 0;
+    transform: translate(-50%, -10px);
+  }
+  to {
+    opacity: 1;
+    transform: translate(-50%, 0);
+  }
+}
 .verify-success {
   background: #edf8f1;
   border-color: #bcdcc8;
