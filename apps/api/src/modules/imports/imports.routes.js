@@ -293,14 +293,11 @@ router.post(
         },
         isActive: true,
       },
-      select: { externalId: true },
+      select: { externalId: true, id: true },
     });
-    for (const item of existing)
-      parsed.errors.push({
-        row: 0,
-        field: "externalId",
-        message: `Student ID ${item.externalId} already exists in this class.`,
-      });
+    const existingByExternalId = new Map(
+      existing.map((item) => [item.externalId, item.id]),
+    );
     const record = await prisma.csvUpload.create({
       data: {
         schoolId: req.auth.schoolId,
@@ -315,6 +312,17 @@ router.post(
         errorSummary: {
           errors: parsed.errors,
           rows: parsed.errors.length ? [] : parsed.rows,
+          existingStudentIds: Object.fromEntries(
+            parsed.rows
+              .filter(
+                (row) =>
+                  row.externalId && existingByExternalId.has(row.externalId),
+              )
+              .map((row) => [
+                row.externalId,
+                existingByExternalId.get(row.externalId),
+              ]),
+          ),
         },
       },
     });
@@ -349,70 +357,110 @@ router.post(
     const snapshot = record.errorSummary?.rows;
     if (!Array.isArray(snapshot) || !snapshot.length)
       throw new ValidationError("This import has no valid rows to commit.");
-    const studentRows = snapshot.map((row) => ({
-      id: crypto.randomUUID(),
-      schoolId: record.schoolId,
-      classId: record.classId,
-      studentKey: crypto.randomBytes(18).toString("hex"),
-      externalId: row.externalId,
-      gradeLevel: row.gradeLevel,
-    }));
-    const identityRows = studentRows.map((student, index) => {
-      const row = snapshot[index];
-      return {
-        id: crypto.randomUUID(),
-        studentId: student.id,
-        studentName: row.studentName,
-        guardianName: row.guardianName,
-        guardianMsisdn: row.guardianMsisdn,
-      };
-    });
-    const observationRows = studentRows.map((student, index) => {
-      const row = snapshot[index];
-      return {
-        id: crypto.randomUUID(),
-        schoolId: record.schoolId,
-        studentId: student.id,
-        academicYear: new Date().getFullYear(),
-        term: "T1",
-        week: 1,
-        gradeLevel: row.gradeLevel,
-        attendanceRateTermToDate: row.attendanceRateTermToDate,
-        attendanceRateLast4w: row.attendanceRateLast4w,
-        avgExamScore: row.avgExamScore,
-        assessmentCompletionRate: row.assessmentCompletionRate,
-        coreSubjectFailures: row.coreSubjectFailures,
-        feeStatus: row.feeStatus,
-        hasTextbooks: row.hasTextbooks,
-        hasUniform: row.hasUniform,
-        doesPaidOrFarmWork: row.doesPaidOrFarmWork,
-        distanceBand: row.distanceBand,
-        weeklyAttendanceHistory: [],
-        sourceUploadId: record.id,
-      };
-    });
-    await prisma.$transaction([
-      prisma.student.createMany({ data: studentRows }),
-      prisma.studentIdentity.createMany({ data: identityRows }),
-      prisma.studentObservation.createMany({ data: observationRows }),
-      prisma.csvUpload.update({
+    const existingStudentIds = record.errorSummary?.existingStudentIds || {};
+    const academicYear = new Date().getFullYear();
+    const students = await prisma.$transaction(async (tx) => {
+      const studentIds = [];
+      for (const row of snapshot) {
+        const existingId = row.externalId
+          ? existingStudentIds[row.externalId]
+          : null;
+        const studentId = existingId || crypto.randomUUID();
+        if (existingId) {
+          await tx.student.update({
+            where: { id: existingId },
+            data: { gradeLevel: row.gradeLevel },
+          });
+          await tx.studentIdentity.upsert({
+            where: { studentId: existingId },
+            create: {
+              id: crypto.randomUUID(),
+              studentId: existingId,
+              studentName: row.studentName,
+              guardianName: row.guardianName,
+              guardianMsisdn: row.guardianMsisdn,
+            },
+            update: {
+              studentName: row.studentName,
+              guardianName: row.guardianName,
+              guardianMsisdn: row.guardianMsisdn,
+            },
+          });
+        } else {
+          await tx.student.create({
+            data: {
+              id: studentId,
+              schoolId: record.schoolId,
+              classId: record.classId,
+              studentKey: crypto.randomBytes(18).toString("hex"),
+              externalId: row.externalId,
+              gradeLevel: row.gradeLevel,
+              identity: {
+                create: {
+                  id: crypto.randomUUID(),
+                  studentName: row.studentName,
+                  guardianName: row.guardianName,
+                  guardianMsisdn: row.guardianMsisdn,
+                },
+              },
+            },
+          });
+        }
+        const observation = {
+          schoolId: record.schoolId,
+          studentId,
+          academicYear,
+          term: "T1",
+          week: 1,
+          gradeLevel: row.gradeLevel,
+          attendanceRateTermToDate: row.attendanceRateTermToDate,
+          attendanceRateLast4w: row.attendanceRateLast4w,
+          avgExamScore: row.avgExamScore,
+          assessmentCompletionRate: row.assessmentCompletionRate,
+          coreSubjectFailures: row.coreSubjectFailures,
+          feeStatus: row.feeStatus,
+          hasTextbooks: row.hasTextbooks,
+          hasUniform: row.hasUniform,
+          doesPaidOrFarmWork: row.doesPaidOrFarmWork,
+          distanceBand: row.distanceBand,
+          weeklyAttendanceHistory: [],
+          sourceUploadId: record.id,
+        };
+        const currentObservation = existingId
+          ? await tx.studentObservation.findFirst({
+              where: { studentId, academicYear, term: "T1", week: 1 },
+              orderBy: { createdAt: "desc" },
+            })
+          : null;
+        if (currentObservation)
+          await tx.studentObservation.update({
+            where: { id: currentObservation.id },
+            data: observation,
+          });
+        else
+          await tx.studentObservation.create({
+            data: { id: crypto.randomUUID(), ...observation },
+          });
+        studentIds.push(studentId);
+      }
+      await tx.csvUpload.update({
         where: { id: record.id },
         data: {
           status: "COMPLETED",
           completedAt: new Date(),
-          errorSummary: { rowCount: studentRows.length },
+          errorSummary: { rowCount: studentIds.length },
         },
-      }),
-      prisma.auditLog.create({
+      });
+      await tx.auditLog.create({
         data: {
           schoolId: record.schoolId,
           actorId: req.auth.teacherId,
           event: "STUDENT_IMPORT_COMMITTED",
-          payload: { uploadId: record.id, rowCount: studentRows.length },
+          payload: { uploadId: record.id, rowCount: studentIds.length },
         },
-      }),
-    ]);
-    const students = studentRows.map((student) => student.id);
+      });
+      return studentIds;
+    });
     const analysis = await scoreClass(
       record.classId,
       record.schoolId,

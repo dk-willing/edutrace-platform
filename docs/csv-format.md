@@ -26,8 +26,10 @@ Do not include safeguarding disclosures, free-text narratives, or unnecessary
 medical information in the CSV.
 
 The import workflow will validate headers, values, duplicates, and row errors
-before writing students or observations. Never upload real data into the demo
-environment.
+before writing students or observations. Re-uploading an existing external ID
+in the selected class updates that student's identity and current week-1
+observation instead of creating a duplicate. Never upload real data into the
+demo environment.
 
 ## Batch scoring from the teacher workspace
 
